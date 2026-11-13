@@ -68,7 +68,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Document installation, Plex setup, backup/restore and troubleshooting.
 - [x] Measure and record Docker image size and idle CPU/RAM under stated conditions.
 - [x] Audit `DESIGN.md` acceptance criteria and record known limitations.
-- [ ] Tag MVP release only after required tests pass.
+- [x] Tag tested MVP/Phase 7 development candidate `v0.7.0-rc.1` (live integrations unverified).
 
 ## Phase 7 — Sonarr/Radarr (post-MVP)
 - [x] Connect and validate optional Sonarr/Radarr instances.
