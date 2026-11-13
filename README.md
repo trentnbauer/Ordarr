@@ -2,11 +2,12 @@
 
 Self-hosted watch-order management for movies and TV episodes.
 
-**Current milestone: canonical collection editor.** Create mixed movie/episode watch
+**Current milestone: manual Plex connectivity plus canonical collection editing.** Create mixed movie/episode watch
 orders, edit entries, expand explicit seasons/ranges, preserve repeats, reorder with
 a keyboard or drag handle, move/remove selected entries, and make independent copies.
-Administrator authentication and SQLite persistence are included. Plex connections,
-playlist sync and import/export remain on the [development checklist](TODO.md).
+Administrator authentication and SQLite persistence are included. Manual Plex URL/token
+setup now validates read access and discovers accessible libraries. Account sign-in,
+media matching, playlist sync and import/export remain on the [development checklist](TODO.md).
 No live media-server compatibility is claimed.
 
 ## Run with Docker Compose
@@ -32,7 +33,7 @@ docker compose exec ordarr /usr/local/bin/ordarr healthcheck
 docker compose down
 ```
 
-The locally built image tag is `ordarr:0.2.0-dev`; no registry release is published.
+The locally built image tag is `ordarr:0.3.0-dev`; no registry release is published.
 
 ## Create a watch order
 
@@ -65,6 +66,59 @@ Every mutation checks the collection revision inside a transaction. Stale tabs r
 HTTP 409 rather than overwriting newer changes. Review the current collection before
 trying again. Ordering writes are atomic, retain existing entry rows, and roll back on
 failure. Standard forms work without JavaScript; drag ordering is an enhancement.
+
+## Connect Plex manually
+
+Open **Settings → Manage Plex connections** after signing in. Enter a connection name,
+a server origin such as `https://plex.example:32400`, and a token authorised to read
+that server. Do not put credentials in the URL. The URL is resolved from Ordarr's
+machine/container, so `localhost` inside Docker refers to the Ordarr container, not
+Plex on your Docker host. Use a reachable LAN address or hostname when appropriate.
+
+Ordarr validates the server's machine ID and reads its accessible library sections
+before saving. Tokens are sent only in `X-Plex-Token` headers, never query parameters.
+HTTPS verification stays enabled, redirects are refused, and a different server
+machine ID cannot silently replace an existing destination. Private-network and
+loopback Plex addresses are supported; link-local and known metadata addresses are
+blocked. Direct connections check DNS results at dial time. When using an inherited
+proxy, destination resolution/access control also depends on that proxy's policy.
+
+HTTP requires explicitly allowing plaintext transport to a trusted server. It sends
+the token without encryption; prefer HTTPS. Custom CA trust should be installed or
+mounted through the deployment's supported trust configuration, never by disabling
+certificate verification.
+
+Use **Recheck** to refresh the library snapshot. Failed, partial or inconsistent
+responses preserve the last good snapshot and show it as potentially stale. Token
+replacement is validated before committing. A blank replacement keeps the current
+token at the same URL; changing the URL requires supplying a token explicitly. Up
+to ten connections and 1,000 discovered libraries per connection are supported.
+
+**This checks connectivity and library read access only.** A server may allow read
+access from a trusted network even with an invalid token. The check does not prove
+Plex account identity, ownership or playlist write permission. Account sign-in, user
+selection, media scans/matching and publishing are not implemented yet. No Plex
+media, users, server settings or playlists are modified by this milestone. Removing
+an Ordarr connection is local only; revoke an exposed token separately through Plex.
+Manual tokens may expire or be revoked; follow [Plex's token guidance](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/).
+
+### Credential storage and backups
+
+Tokens are AES-256-GCM encrypted in SQLite with fresh nonces and connection-bound
+associated data. The 32-byte `credentials.key` is generated atomically in the persistent
+data directory, mode 0600. It must be backed up **with the matching database** and
+kept private. Startup refuses to replace a missing key when saved credentials exist,
+or to use a corrupt, symlinked or group/world-accessible key file. There is no automatic
+key rotation/recovery yet. Restore the original key and database rather than inventing
+a replacement key.
+
+This protects a database-only disclosure; it does not protect against someone who can
+read both the key and database or control the host. The key is in the same named volume
+for reliable self-hosted persistence. Back up the whole stopped volume, including key,
+database and any SQLite sidecars. Restoring a backup can also restore then-valid
+Ordarr sessions and Plex tokens; protect backups and revoke credentials when needed.
+The application never returns tokens in rendered forms and uses fixed external-error
+messages instead of logging request headers, response bodies or credential values.
 
 ## Develop
 
@@ -119,21 +173,25 @@ python3 scripts/smoke.py --compose
 
 The smoke test verifies setup, authenticated settings, and persistence of administrator,
 session, mixed collection order and repeated entries after process/container replacement,
-plus logout, revoked-cookie rejection, login, and clean shutdown. Go tests cover migration rollback, future-schema rejection,
+plus private credential-key persistence/permissions, logout, revoked-cookie rejection,
+login, and clean shutdown. Go tests cover migration rollback, future-schema rejection,
 concurrent administrator creation, authentication expiry, input limits, CSRF, escaping,
 security flags, rate limiting and health failures. Collection tests additionally cover
 range/season expansion, stable IDs, fork independence, optimistic conflicts, forced-write
 rollback, pagination, limits, and upgrading an existing foundation database.
 
 Optional browser checks require Playwright installed outside application dependencies:
-`node scripts/browser-smoke.cjs`. Set `CHROMIUM_PATH` to a system Chromium executable,
+`node scripts/browser-smoke.cjs`. The additional
+`node scripts/plex-browser-smoke.cjs` exercises real application requests against a
+disposable local Plex-shaped fixture, including encrypted-token restart and failed
+recheck retention. This is not live Plex verification. Set `CHROMIUM_PATH` to a system Chromium executable,
 or let Playwright use its downloaded browser. CI runs the Go checks and Compose smoke;
 the workflow itself has not been exercised on GitHub yet.
 
 In a managed cloud build requiring a proxy CA:
 
 ```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -t ordarr:0.2.0-dev .
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -t ordarr:0.3.0-dev .
 ```
 
 The optional BuildKit secret supplies trust during dependency download without placing
@@ -142,7 +200,7 @@ session certificates into image layers. TLS and Go module checksum verification 
 ## Backups and migrations
 
 Stop Ordarr before making a filesystem backup of the named volume (including database,
-WAL, and shared-memory files). Back up to a separate protected location, restart, and
+WAL, shared-memory files, and `credentials.key`). Back up to a separate protected location, restart, and
 verify health. Restore into an empty volume owned by UID 10001 with the service stopped.
 A consistent SQLite backup API can be added later for online backups; copying a live
 SQLite database file alone is unsafe.

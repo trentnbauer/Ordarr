@@ -2,3 +2,6 @@
 /data/
 .env
 coverage.out
+
+credentials.key
+.credentials-key-*

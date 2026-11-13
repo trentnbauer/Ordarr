@@ -23,7 +23,7 @@ func fixture(t *testing.T) (*App, http.Handler) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.DB.Close() })
-	a, err := New(s, Config{Address: "127.0.0.1:8080", DataDir: "test-data"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	a, err := New(s, Config{Address: "127.0.0.1:8080", DataDir: t.TempDir()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

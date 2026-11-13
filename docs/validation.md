@@ -107,13 +107,65 @@ Validated on 13 November 2026 in the same managed Linux amd64 environment:
 - No environment settings were modified or published. GitHub Actions is configured
   for Go checks, Docker build and Compose smoke, but has not run on GitHub.
 
+## Manual Plex connectivity milestone
+
+Validated on 13 November 2026 in the managed Linux amd64 environment:
+
+- `make check test build` passed: formatting, `go vet`, **31 top-level tests** with
+  race detection and a native build. All prior authentication/collection tests remain
+  passing. Plex adapter tests use the real read-only adapter against disposable HTTP
+  fixtures; none exercises a live Plex Media Server.
+- Adapter cases cover documented `/library/sections/all` and 404-only legacy fallback,
+  header/body pagination, partial/inconsistent responses, duplicate keys, credential
+  headers, 401/403/498, rate limits, bounded retry/timeout behavior, refused redirects,
+  untrusted TLS certificates, response-size limits and reflected tokens. Direct URL
+  tests cover private/loopback support, plaintext consent and blocked metadata URLs.
+- Vault tests verify AES-GCM round trips after reopen, fresh nonces, ciphertext
+  tampering, wrong connection binding, concurrent atomic key creation, private file
+  permissions, and failure for missing/corrupt/exposed keys. The application test
+  confirms a missing key is not regenerated when stored credentials exist.
+- Store/HTTP cases verify atomic snapshot rollback on an injected duplicate library
+  key, retained last-good libraries after failed recheck, machine-ID pinning, token
+  retention only at the same URL, optimistic conflicts, connection count bounds,
+  authentication/CSRF and local-only deletion with cascading snapshot cleanup.
+- `CHROMIUM_PATH=/usr/bin/chromium node scripts/plex-browser-smoke.cjs` passed
+  manual connection, library discovery, encrypted token/key survival across an
+  application restart, failed recheck with cached data, recovery, token rotation,
+  response/log redaction, mobile overflow checks and local deletion. The fixture
+  asserts all Plex requests are GETs. Mobile screenshots were inspected.
+- The existing collection browser suite and native persistence smoke also passed.
+  The native and Compose smoke now verify the private 32-byte credential key and
+  its unchanged contents after process/container replacement. They continue to
+  check mixed sequence/repeat persistence, logout revocation and graceful shutdown.
+  Docker credential-bearing restart is not separately live-verified: token restart
+  uses the native browser fixture; the container smoke verifies key persistence.
+- `ordarr:0.3.0-dev`, image ID
+  `sha256:ca4053acd5482b2fe6ed4b2952acd6a81481fb505c28eff278235b06d9a91681`,
+  built successfully and passed the isolated Compose smoke. Its test volume/project
+  was removed. No production fixture or simulated Plex adapter is installed.
+- Before upgrading the normal instance, its stopped schema-2 data was backed up at
+  `/workspace/ordarr-backups/pre-plex-1yzRRB/data`. The checked schema-3 copy is in
+  `after-migration` under that directory. SQLite integrity passed and all administrator,
+  session, collection and entry rows exactly matched the pre-upgrade snapshot.
+  Private key creation was verified. The existing named volume was retained and
+  the upgraded instance is running healthy. No live Plex credentials were configured.
+- Idle schema-3 measurements were **87,127,386 bytes (83.09 MiB)** for the local
+  image and **12,336 KiB (12.05 MiB)** process RSS. Three five-second process CPU
+  samples were 0.000% of one core at kernel tick resolution. Measurements used
+  `python3 scripts/measure.py`, without a configured live Plex connection or media
+  scans. The previously documented nested-cgroup limitation still applies.
+- Environment configuration and publication were unchanged. GitHub Actions configuration
+  includes the new Go suites via `go test ./...`; no new GitHub run was inspected.
+
 ## Limits
 
-Collections currently use explicit provider identities supplied by the administrator.
-Provider metadata search, Plex connection/authentication, matching and playlist sync,
-import/export and subscriptions remain unimplemented. No Plex, Jellyfin or *arr API
-has been called or verified. Unmatched entries have no inferred availability or release
-status. No release is tagged or registry image published. This is not a full security
-audit or production load test. Password change/recovery and distribution licensing
-remain open. The foundation measurements above are historical; measure again under
-real library, matching and sync workloads before drawing MVP resource conclusions.
+Manual Plex connection and accessible-library discovery are implemented. Account
+sign-in, permitted-user/account identity discovery, paginated movie/episode scans,
+matching, ambiguity resolution, availability and playlist sync remain unimplemented.
+Provider metadata search, import/export and subscriptions also remain open. The
+combined libraries/users and authentication/ambiguity checklist items remain unchecked.
+No live Plex, Jellyfin or *arr instance has been verified; see `plex-api.md` for the
+API evidence and remaining real-server checks. Unmatched entries have no inferred
+availability or release status. No release is tagged or registry image published.
+This is not a full security audit or production load test. Password change/recovery,
+external key management/rotation and distribution licensing remain open.

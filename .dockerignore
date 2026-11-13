@@ -3,3 +3,8 @@
 data
 bin
 coverage.out
+**/credentials.key
+**/.credentials-key-*
+**/*.db
+**/*.db-wal
+**/*.db-shm

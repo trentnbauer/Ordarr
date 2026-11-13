@@ -28,9 +28,9 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Test order preservation, range expansion, duplicates and persistence.
 
 ## Phase 3 — Plex connectivity and matching (MVP)
-- [ ] Implement manual Plex server URL/token connection and validation.
+- [x] Implement manual Plex server URL/token connection and validation.
 - [ ] Implement Plex account sign-in/authorisation using verified supported API flow.
-- [ ] Securely persist credentials and redact secrets.
+- [x] Securely persist credentials and redact secrets.
 - [ ] Discover accessible Plex libraries and permitted users.
 - [ ] Fetch and paginate movies and individual episodes.
 - [ ] Match by stable provider IDs; add validated fallback and manual resolution.
@@ -110,6 +110,10 @@ See `docs/validation.md` for executed checks and `docs/decisions.md` for assumpt
 README, example environment configuration and contribution guidance are in place;
 the Phase 0 documentation item remains open pending the owner’s distribution licence choice.
 Settings currently displays account and instance configuration; password change/recovery
-and media connection settings are not implemented. Phase 2 now provides the canonical
-collection editor; Phase 3 (Plex connectivity and matching) is next. Whole seasons use
-explicit episode counts; provider metadata lookup and availability checks remain unimplemented.
+are not implemented. Phase 2 provides the canonical collection editor. Phase 3 now
+supports manual Plex URL/token setup, encrypted storage, rechecks and accessible-library
+discovery. Account sign-in and permitted-user discovery, media scans, matching and
+availability checks remain open. Whole seasons still use explicit episode counts.
+The combined libraries/users checklist item remains unchecked because user/account
+identity and permissions have not been implemented or verified. Adapter and browser
+tests use disposable fixtures; no live Plex server has been verified.

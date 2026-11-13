@@ -14,7 +14,7 @@
 {{define "collection-editor"}}
 <p><a href="/">← All watch orders</a></p>{{if .Error}}<p role="alert" class="error">{{.Error}}</p>{{end}}
 <p class="description intro">{{.Collection.Description}}</p><p class="muted">{{len .Collection.Entries}} / 1,000 entries · revision {{.Collection.Revision}}{{if .Collection.ForkedFrom}} · independent local copy{{end}}</p>
-<p class="notice">Entries stay in your canonical order. No media server is connected; availability has not been checked.</p>
+<p class="notice">Entries stay in your canonical order. Media matching has not run; availability has not been checked.</p>
 <div class="toolbar"><form method="post" action="/collections/{{.Collection.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="fork"><button class="secondary">Duplicate / fork</button></form></div>
 <details class="card"><summary>Edit collection details</summary><form method="post" action="/collections/{{.Collection.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="metadata"><label for="title">Collection title</label><input id="title" name="title" value="{{.Collection.Title}}" maxlength="200" required><label for="description">Description</label><textarea id="description" name="description" maxlength="2000" rows="3">{{.Collection.Description}}</textarea><button>Save collection details</button></form></details>
 <section class="card editor-input"><h2>{{if .EntryID}}Edit entry{{else}}Add media{{end}}</h2><p class="muted">Enter a known provider ID. For episodes, use the series ID and its season/episode numbering. Titles are labels, never matching evidence.</p>

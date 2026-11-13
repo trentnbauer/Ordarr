@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"database/sql"
@@ -22,6 +23,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/trentnbauer/Ordarr/internal/plex"
+	"github.com/trentnbauer/Ordarr/internal/secret"
 	"github.com/trentnbauer/Ordarr/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -61,6 +64,8 @@ func LoadConfig() (Config, error) {
 }
 
 type App struct {
+	plex      *plex.Client
+	vault     *secret.Vault
 	store     *store.Store
 	config    Config
 	logger    *slog.Logger
@@ -80,6 +85,8 @@ type page struct {
 	Collection                                           store.Collection
 	Query, Filter, Prev, Next, EntryID                   string
 	Input                                                entryInput
+	PlexConnections                                      []plexView
+	Notice                                               string
 }
 
 func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
@@ -91,7 +98,15 @@ func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
+	hasCredentials, err := s.HasPlexCredentials(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	vault, err := secret.Open(c.DataDir, hasCredentials)
+	if err != nil {
+		return nil, err
+	}
+	return &App{plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
 }
 func randomToken() string {
 	var b [32]byte
@@ -120,6 +135,10 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /collections/{id}", a.protected(a.collectionDetail))
 	m.HandleFunc("POST /collections/{id}", a.protected(a.changeCollection))
 	m.HandleFunc("GET /collections/{id}/entries/{entry}/edit", a.protected(a.collectionDetail))
+	m.HandleFunc("GET /settings/plex", a.protected(a.plexSettings))
+	m.HandleFunc("POST /settings/plex", a.protected(a.plexSave))
+	m.HandleFunc("POST /settings/plex/{id}/check", a.protected(a.plexCheck))
+	m.HandleFunc("POST /settings/plex/{id}/delete", a.protected(a.plexDelete))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {

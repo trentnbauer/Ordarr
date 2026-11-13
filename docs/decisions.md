@@ -30,7 +30,7 @@
 ## Still open
 
 Password change/recovery, bootstrap provisioning beyond trusted local setup, public
-release licensing, Plex sign-in API verification, token encryption/key management,
+release licensing, Plex sign-in implementation/live verification, external key management/rotation,
 provider metadata lookup, and live Plex test access belong to subsequent work. No
 Plex credentials are required for the foundation. Follow TODO.md in phase order.
 
@@ -60,3 +60,29 @@ Plex credentials are required for the foundation. Follow TODO.md in phase order.
   SQLite matching and a 20-item page; provider lookup is deferred to real adapters.
 - When destination matching is added, editing media identity must invalidate its old
   match; changing labels or positions must retain the same canonical entry identity.
+
+## Manual Plex connectivity
+
+- Migration 003 stores independent named server connections and the last complete
+  library snapshot. Connection/token updates and library replacement commit together;
+  failed rechecks keep old data with a recorded failure. Revisions reject stale writes.
+- The real adapter is read-only. It verifies root metadata and accessible libraries,
+  pins the machine identifier, preserves platform proxies/TLS and never follows
+  redirects or arbitrary response URLs. Private/loopback destinations are required
+  for self-hosted Plex; link-local/metadata destinations are rejected. Proxy-side DNS
+  and destination access remain subject to the proxy's controls.
+- A token is sent only in its configured server's header. Blank token retention is
+  allowed only at the same URL; changing that address requires explicit credentials.
+  HTTPS remains verified, and plaintext HTTP requires explicit operator consent.
+- AES-256-GCM ciphertext uses a fresh nonce and AAD bound to the connection ID. The
+  atomically generated 0600 key lives at `<data directory>/credentials.key`, separately
+  from SQLite in the same persistent volume. Database-only exposure does not reveal
+  tokens; host/whole-volume compromise remains outside this protection. Backups must
+  retain both. Missing keys with existing credentials fail startup rather than replacing
+  them. Key rotation is not implemented. Standard Linux hard links and directory fsync
+  are required for atomic first-run key publication.
+- Successful server reads do not establish Plex account identity, ownership or write
+  permissions. No user/owner identity is inferred from server-owner metadata. Account
+  sign-in, user discovery, media matching and publishing remain separate milestones.
+- API assumptions and remaining live checks are recorded in `plex-api.md`. Production
+  never substitutes a fixture service; only tests run disposable HTTP fixtures.

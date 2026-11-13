@@ -80,6 +80,17 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
             time.sleep(.1)
         raise RuntimeError('server never became healthy')
 
+    def read_key():
+        if args.compose:
+            key = subprocess.check_output(compose + ['exec', '-T', 'ordarr', 'cat', '/data/credentials.key'], cwd=ROOT, env=env)
+            mode = subprocess.check_output(compose + ['exec', '-T', 'ordarr', 'stat', '-c', '%a', '/data/credentials.key'], cwd=ROOT, env=env, text=True).strip()
+            expect(mode, '600')
+        else:
+            key = (Path(tmp) / 'credentials.key').read_bytes()
+            expect((Path(tmp) / 'credentials.key').stat().st_mode & 0o777, 0o600)
+        expect(len(key), 32)
+        return key
+
     def stop():
         global process
         if args.compose:
@@ -97,6 +108,7 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
 
     try:
         start()
+        saved_key = read_key()
         status, headers, _ = request('/')
         expect((status, headers['Location']), (303, '/setup'))
         status, _, body = request('/setup')
@@ -128,6 +140,8 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
         session = next(c.value for c in jar if c.name == 'ordarr_session')
         stop()
         start()
+        if read_key() != saved_key:
+            raise AssertionError("credential key changed after replacement")
         status, _, body = request('/settings')
         expect(status, 200)  # Persisted session and administrator survive replacement.
         assert 'smoke-admin' in body
@@ -156,7 +170,7 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
         if not args.compose:
             log.seek(0)
             assert log.read().count('Ordarr stopped gracefully') == 2
-        print('PASS: health, setup, authenticated settings, mixed collection and repeat persistence after replacement, logout, revoked-cookie rejection, login, graceful stop')
+        print('PASS: health, setup, private credential key persistence, authenticated settings, mixed collection and repeat persistence after replacement, logout, revoked-cookie rejection, login, graceful stop')
     finally:
         if args.compose:
             command('down', '--volumes', '--remove-orphans')
