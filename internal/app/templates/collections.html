@@ -11,7 +11,7 @@
 
 {{define "revision-fields"}}<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{.Collection.Revision}}">{{end}}
 
-{{define "collection-editor"}}<p><a href="/collections/{{.Collection.ID}}/export?format=yaml">Export YAML</a> · <a href="/collections/{{.Collection.ID}}/export?format=json">Export JSON</a>{{if .Source}} · <a href="/collections/{{.Collection.ID}}/source">Subscription updates</a> · Fork before editing{{end}}</p>
+{{define "collection-editor"}}<p><a href="/settings/acquisition?collection={{.Collection.ID}}">Sonarr / Radarr requests</a></p><p><a href="/collections/{{.Collection.ID}}/export?format=yaml">Export YAML</a> · <a href="/collections/{{.Collection.ID}}/export?format=json">Export JSON</a>{{if .Source}} · <a href="/collections/{{.Collection.ID}}/source">Subscription updates</a> · Fork before editing{{end}}</p>
 <p><a href="/">← All watch orders</a></p>{{$collectionID:=.Collection.ID}}{{range .PlexConnections}}<p><a href="/collections/{{$collectionID}}/matches/{{.ID}}">Match and view availability on {{.Name}}</a></p>{{end}}{{if .Error}}<p role="alert" class="error">{{.Error}}</p>{{end}}
 <p class="description intro">{{.Collection.Description}}</p><p class="muted">{{len .Collection.Entries}} / 1,000 entries · revision {{.Collection.Revision}}{{if .Collection.ForkedFrom}} · independent local copy{{end}}</p>
 <p class="notice">Entries stay in your canonical order. Media matching has not run; availability has not been checked.</p>

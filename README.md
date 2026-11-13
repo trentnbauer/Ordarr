@@ -4,7 +4,7 @@ Self-hosted watch-order management for movies and individual TV episodes.
 
 Build collections in your preferred order, keep deliberate repeats, and connect your Plex server.
 
-**Early development:** collection editing and Plex connections are available. Media matching, playlist sync, and import/export are still being built.
+**Development build:** includes Plex matching and playlist sync, YAML/JSON imports and subscriptions, and optional Sonarr/Radarr requests. Live service compatibility is still being verified.
 
 ## Quick start
 

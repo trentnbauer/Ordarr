@@ -1,6 +1,6 @@
 services:
   ordarr:
-    image: ${ORDARR_IMAGE:-ordarr:0.6.0-dev}
+    image: ${ORDARR_IMAGE:-ordarr:0.7.0-dev}
     build: .
     ports:
       - "${ORDARR_BIND_IP:-127.0.0.1}:${ORDARR_PORT:-8080}:8080"

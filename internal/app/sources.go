@@ -16,6 +16,7 @@ import (
 )
 
 type sourceView struct {
+	Changes           portable.Changes
 	Subscription      store.Subscription
 	Current, Proposed string
 	PendingHash       string
@@ -103,7 +104,10 @@ func (a *App) sourcePage(w http.ResponseWriter, r *http.Request) {
 	if len(sub.LastValid) > 0 {
 		current = sub.LastValid
 	}
-	a.render(w, r, 200, page{Title: "Subscription updates", Mode: "source", Source: &sourceView{Subscription: sub, Current: string(current), Proposed: string(sub.Pending), PendingHash: fmt.Sprintf("%x", sha256.Sum256(sub.Pending))}})
+	before, _ := portable.Decode(sub.LastValid)
+	after, _ := portable.Decode(sub.Pending)
+	changes := portable.Diff(before, after)
+	a.render(w, r, 200, page{Title: "Subscription updates", Mode: "source", Source: &sourceView{Subscription: sub, Current: string(current), Proposed: string(sub.Pending), Changes: changes, PendingHash: fmt.Sprintf("%x", sha256.Sum256(sub.Pending))}})
 }
 func (a *App) updateSource(w http.ResponseWriter, r *http.Request) {
 	sub, err := a.store.CollectionSubscription(r.Context(), r.PathValue("id"))
@@ -117,7 +121,12 @@ func (a *App) updateSource(w http.ResponseWriter, r *http.Request) {
 		a.wakeWorker()
 	case "policy":
 		revision, _ := strconv.Atoi(r.PostForm.Get("revision"))
-		err = a.store.SubscriptionPolicy(r.Context(), sub.ID, r.PostForm.Get("policy"), revision)
+		interval, e := strconv.Atoi(r.PostForm.Get("interval"))
+		if e != nil {
+			err = store.ErrInvalid
+			break
+		}
+		err = a.store.SubscriptionPolicy(r.Context(), sub.ID, r.PostForm.Get("policy"), revision, interval)
 		a.wakeWorker()
 	case "approve":
 		revision, _ := strconv.Atoi(r.PostForm.Get("revision"))

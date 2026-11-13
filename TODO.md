@@ -71,12 +71,12 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [ ] Tag MVP release only after required tests pass.
 
 ## Phase 7 — Sonarr/Radarr (post-MVP)
-- [ ] Connect and validate optional Sonarr/Radarr instances.
-- [ ] Show monitored, queued, downloading and missing status.
-- [ ] Implement manual requests for confirmed matches.
-- [ ] Add opt-in automatic requests, disabled by default.
-- [ ] Add request limits, deduplication, exclusions, approval controls and audit history.
-- [ ] Test request effects and recovery using mock APIs and optional live instances.
+- [x] Connect and validate optional Sonarr/Radarr instances.
+- [x] Show monitored, queued, downloading and missing status.
+- [x] Implement manual requests for confirmed matches.
+- [x] Add opt-in automatic requests, disabled by default.
+- [x] Add request limits, deduplication, exclusions, approval controls and audit history.
+- [x] Test request effects and recovery using mock APIs and optional live instances.
 
 ## Phase 8 — Jellyfin (post-MVP)
 - [ ] Validate Jellyfin playlist API, mixed-media order and permissions.
@@ -102,7 +102,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Verify sync reconciliation after external playlist changes and retry without unintended duplicates.
 - [x] Record which Plex integration scenarios passed mocked tests versus live-server tests.
 - [x] Do not mark real-server compatibility verified until exercised against a real Plex server.
-- [ ] Post-MVP: enforce opt-in automatic Sonarr/Radarr requests with limits, deduplication, exclusions and audit history.
+- [x] Post-MVP: enforce opt-in automatic Sonarr/Radarr requests with limits, deduplication, exclusions and audit history.
 
 
 ## Milestone notes
@@ -115,3 +115,9 @@ using disposable fixtures. **No live Plex server/account has been verified.**
 Other-user publishing, webhook triggers and unrelated playlist adoption are unavailable.
 README, environment examples and contribution guidance are present. Distribution
 licensing remains the owner's decision; the repository is currently unlicensed.
+
+Phase 7 now provides real v3 adapters, cached statuses, confirmed whole-media requests,
+approvals, disabled-by-default automation with collection/server opt-ins, rolling
+limits, exclusions, durable attempt history and uncertain-write recovery. Tests use
+HTTP fixtures; live Sonarr/Radarr compatibility remains unverified. See the
+[acquisition wiki](https://github.com/trentnbauer/Ordarr/wiki/Acquisition).

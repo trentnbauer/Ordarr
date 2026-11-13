@@ -18,6 +18,7 @@ const assert = require('node:assert/strict');
     stdio: 'ignore',
   });
   let browser;
+  let acquisitionFixture;
   try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
@@ -177,12 +178,55 @@ const assert = require('node:assert/strict');
     await page.getByRole('button',{name:'Import collection',exact:true}).click();
     await page.getByRole('heading',{name:'Browser imported',exact:true}).waitFor();
     assert.equal(await page.locator('#entry-list .entry').count(),2);
+    const importedURL=page.url();
     const exported=await page.context().request.get(page.url()+'/export?format=json');
     assert.equal((await exported.json()).entries.length,2);
     await page.getByRole('link',{name:'Activity',exact:true}).click();
     await page.getByRole('heading',{name:'Activity',exact:true}).waitFor();
+    let acquired = false, acquisitionPosts = 0;
+    acquisitionFixture = require('node:http').createServer((req,res)=>{
+      assert.equal(req.headers['x-api-key'],'browser-arr-secret');
+      const path = new URL(req.url,'http://fixture').pathname;
+      const media={id:7,tmdbId:1,title:'Confirmed repeat',titleSlug:'confirmed-repeat',monitored:true,hasFile:false};
+      let body;
+      switch(path){
+        case '/api/v3/system/status': body={appName:'Radarr',version:'5'}; break;
+        case '/api/v3/qualityprofile': body=[{id:1,name:'HD'}]; break;
+        case '/api/v3/rootfolder': body=[{id:2,path:'/movies'}]; break;
+        case '/api/v3/queue': body={page:1,pageSize:100,totalRecords:0,records:[]}; break;
+        case '/api/v3/movie/lookup': body=[media]; break;
+        case '/api/v3/movie': if(req.method==='POST'){acquisitionPosts++;acquired=true;body=media;}else{body=acquired?[media]:[];}break;
+        default: res.writeHead(404).end();return;
+      }
+      res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));
+    });
+    await new Promise(resolve=>acquisitionFixture.listen(0,'127.0.0.1',resolve));
+    await page.goto(origin+'/settings/acquisition');
+    await page.getByLabel('Name',{exact:true}).fill('Browser Radarr');
+    await page.getByLabel('Server origin',{exact:true}).fill('http://127.0.0.1:'+acquisitionFixture.address().port);
+    await page.getByLabel('API key',{exact:true}).fill('browser-arr-secret');
+    await page.getByLabel('Allow unencrypted HTTP on this trusted connection',{exact:true}).check();
+    await page.getByRole('button',{name:'Validate and connect',exact:true}).click();
+    await page.getByRole('heading',{name:'Browser Radarr · radarr',exact:true}).waitFor();
+    assert.equal(await page.getByLabel('Enable automatic requests for explicitly selected collections',{exact:true}).isChecked(),false);
+    assert.equal(await page.getByLabel('Require approval for automatic proposals',{exact:true}).isChecked(),true);
+    await page.getByLabel('Quality profile',{exact:true}).selectOption('1');
+    await page.getByLabel('Root folder',{exact:true}).selectOption('2');
+    await page.getByRole('button',{name:'Save request policy',exact:true}).click();
+    await page.goto(importedURL);
+    await page.getByRole('link',{name:'Sonarr / Radarr requests',exact:true}).click();
+    await page.getByLabel('I understand the request covers a whole movie or whole series, including episodes outside this order.',{exact:true}).check();
+    await page.getByRole('button',{name:'Confirm provider match and propose request',exact:true}).click();
+    await page.getByRole('heading',{name:'Confirmed repeat',exact:true}).waitFor();
+    assert.equal(acquisitionPosts,0,'proposal wrote before approval');
+    await page.getByLabel('I approve whole-media acquisition. For uncertain attempts, I have reviewed the service and authorize retry if absent.',{exact:true}).check();
+    await page.getByRole('button',{name:'Approve / retry confirmed request',exact:true}).click();
+    for(let i=0;i<50&&!acquired;i++)await new Promise(resolve=>setTimeout(resolve,100));
+    assert.equal(acquisitionPosts,1);
+    await page.goto(origin+'/settings/acquisition');
+    assert(!(await page.locator('body').innerText()).includes('browser-arr-secret'));
     assert.deepEqual(errors, []);
-    console.log('PASS: browser authentication, mixed collection editing, repeats, keyboard and drag ordering, cancelled drag recovery, bulk move/removal, independent fork/delete, search/filter, mobile layout and season/movie editing without JavaScript');
+    console.log('PASS: browser authentication, mixed collection editing, repeats, keyboard and drag ordering, cancelled drag recovery, bulk move/removal, independent fork/delete, search/filter, mobile layout season/movie editing without JavaScript, portable upload/export and approved Radarr acquisition');
   } finally {
     if (browser) await browser.close();
     if (server.exitCode === null) {
@@ -190,6 +234,7 @@ const assert = require('node:assert/strict');
       server.kill('SIGTERM');
       await stopped;
     }
+    if(acquisitionFixture) await new Promise(resolve=>acquisitionFixture.close(resolve));
     await rm(temp, { recursive: true, force: true });
   }
 })().catch(e => { console.error(e); process.exitCode = 1; });

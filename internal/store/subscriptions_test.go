@@ -66,3 +66,36 @@ func TestSubscriptionApprovalIdentityAndFork(t *testing.T) {
 		t.Fatal("failure lost valid source")
 	}
 }
+func TestSubscriptionPollingBoundsAndPersistence(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.DB.Close()
+	ctx := context.Background()
+	sub, err := s.CreateSubscription(ctx, "https://example.com/order", "approval")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, _ = s.Subscription(ctx, sub.ID)
+	if sub.IntervalMinutes != 60 {
+		t.Fatal(sub)
+	}
+	if err = s.SubscriptionPolicy(ctx, sub.ID, "approval", sub.Revision, 4); err == nil {
+		t.Fatal("tiny interval accepted")
+	}
+	if err = s.SubscriptionPolicy(ctx, sub.ID, "approval", sub.Revision, 15); err != nil {
+		t.Fatal(err)
+	}
+	sub, _ = s.Subscription(ctx, sub.ID)
+	if sub.IntervalMinutes != 15 {
+		t.Fatal(sub)
+	}
+	if err = s.DeferSubscription(ctx, sub.ID); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := s.Subscription(ctx, sub.ID)
+	if after.NextRun <= sub.NextRun {
+		t.Fatal("not scheduled")
+	}
+}

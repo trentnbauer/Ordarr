@@ -15,11 +15,12 @@ type Subscription struct {
 	Failures                      int
 	Message                       string
 	CheckedAt                     int64
+	IntervalMinutes               int
 }
 
 func scanSubscription(row interface{ Scan(...any) error }) (Subscription, error) {
 	var s Subscription
-	err := row.Scan(&s.ID, &s.CollectionID, &s.URL, &s.Policy, &s.Revision, &s.ETag, &s.Modified, &s.LastValid, &s.Pending, &s.NextRun, &s.Failures, &s.Message, &s.CheckedAt)
+	err := row.Scan(&s.ID, &s.CollectionID, &s.URL, &s.Policy, &s.Revision, &s.ETag, &s.Modified, &s.LastValid, &s.Pending, &s.NextRun, &s.Failures, &s.Message, &s.CheckedAt, &s.IntervalMinutes)
 	return s, err
 }
 func (s *Store) Subscription(ctx context.Context, id string) (Subscription, error) {
@@ -66,13 +67,19 @@ func (s *Store) DueSubscriptions(ctx context.Context) ([]Subscription, error) {
 	return result, rows.Err()
 }
 func (s *Store) DeferSubscription(ctx context.Context, id string) error {
-	_, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET next_run=? WHERE id=?", time.Now().Add(time.Hour).Unix(), id)
+	_, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET next_run=?+interval_minutes*60 WHERE id=?", time.Now().Unix(), id)
 	return err
 }
 func (s *Store) SourceFailure(ctx context.Context, sub Subscription) error {
-	delay := time.Hour
+	delay := time.Duration(sub.IntervalMinutes) * time.Minute
+	if delay < 5*time.Minute {
+		delay = time.Hour
+	}
 	for i := 0; i < sub.Failures && i < 5; i++ {
 		delay *= 2
+	}
+	if delay > 7*24*time.Hour {
+		delay = 7 * 24 * time.Hour
 	}
 	_, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET failures=failures+1,next_run=?,checked_at=?,message='Fetch or validation failed; last valid source retained.' WHERE id=? AND revision=?", time.Now().Add(delay).Unix(), time.Now().Unix(), sub.ID, sub.Revision)
 	return err
@@ -136,11 +143,14 @@ func (s *Store) ApproveSource(ctx context.Context, sub Subscription, c Collectio
 	}
 	return tx.Commit()
 }
-func (s *Store) SubscriptionPolicy(ctx context.Context, id, policy string, revision int) error {
+func (s *Store) SubscriptionPolicy(ctx context.Context, id, policy string, revision, interval int) error {
+	if interval < 5 || interval > 10080 {
+		return ErrInvalid
+	}
 	if policy != "automatic" && policy != "approval" && policy != "paused" {
 		return ErrInvalid
 	}
-	result, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET policy=?,revision=revision+1,etag='',modified='',next_run=0 WHERE id=? AND revision=?", policy, id, revision)
+	result, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET policy=?,interval_minutes=?,revision=revision+1,etag='',modified='',next_run=0 WHERE id=? AND revision=?", policy, interval, id, revision)
 	if err != nil {
 		return err
 	}

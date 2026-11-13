@@ -83,6 +83,7 @@ type attempt struct {
 	until time.Time
 }
 type page struct {
+	Acquisition                                          *acquisitionView
 	Source                                               *sourceView
 	Destinations                                         []store.Destination
 	SyncRuns                                             []store.SyncRun
@@ -176,6 +177,14 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /collections/{id}/export", a.protected(a.exportFile))
 	m.HandleFunc("GET /collections/{id}/source", a.protected(a.sourcePage))
 	m.HandleFunc("POST /collections/{id}/source", a.protected(a.updateSource))
+	m.HandleFunc("GET /settings/acquisition", a.protected(a.acquisitionPage))
+	m.HandleFunc("POST /settings/acquisition", a.protected(a.connectArr))
+	m.HandleFunc("POST /settings/acquisition/{id}/policy", a.protected(a.arrPolicy))
+	m.HandleFunc("POST /settings/acquisition/{id}/refresh", a.protected(a.arrRefresh))
+	m.HandleFunc("POST /settings/acquisition/{id}/requests", a.protected(a.proposeRequest))
+	m.HandleFunc("POST /settings/acquisition/{id}/automation", a.protected(a.collectionAutomation))
+	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
+	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {

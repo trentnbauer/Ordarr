@@ -23,7 +23,7 @@ type PlexConnection struct {
 func (p PlexConnection) String() string { return "Plex connection " + p.ID }
 func (s *Store) HasPlexCredentials(ctx context.Context) (bool, error) {
 	var n int
-	err := s.DB.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM plex_connections)+(SELECT count(*) FROM plex_accounts)+(SELECT count(*) FROM plex_auth_attempts WHERE expires_at>?)", time.Now().Unix()).Scan(&n)
+	err := s.DB.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM plex_connections)+(SELECT count(*) FROM arr_connections)+(SELECT count(*) FROM plex_accounts)+(SELECT count(*) FROM plex_auth_attempts WHERE expires_at>?)", time.Now().Unix()).Scan(&n)
 	return n > 0, err
 }
 func loadPlexConnection(ctx context.Context, q queryer, id string) (PlexConnection, error) {
