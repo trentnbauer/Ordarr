@@ -56,7 +56,7 @@ func Decode(data []byte) (Document, error) {
 func (d Document) Collection() (store.Collection, error) {
 	c := store.Collection{Title: d.Title, Description: d.Description}
 	seen := map[string]bool{}
-	if d.Version != 1 || len(d.Entries) > store.MaxEntries {
+	if d.Version != 1 || len(d.ID) > 80 || len(d.Entries) > store.MaxEntries {
 		return c, ErrFormat
 	}
 	for _, e := range d.Entries {
@@ -83,6 +83,9 @@ func (d Document) Collection() (store.Collection, error) {
 			entry.ID = e.ID
 			if len(entries) > 1 {
 				entry.ID = e.ID + "-" + itoa(entry.Episode)
+			}
+			if len(entry.ID) > 80 {
+				return c, ErrFormat
 			}
 			c.Entries = append(c.Entries, entry)
 		}

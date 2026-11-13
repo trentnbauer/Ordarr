@@ -2,6 +2,7 @@ package portable
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +40,12 @@ entries:
 		if _, err = Decode([]byte(bad)); err == nil {
 			t.Fatal("accepted malformed", bad)
 		}
+	}
+}
+
+func TestRangeSourceIDAlwaysExportsWithinBounds(t *testing.T) {
+	d := Document{Version: 1, Title: "Order", Entries: []Entry{{ID: strings.Repeat("a", 80), Kind: "episode_range", Title: "Show", Provider: "tvdb", ExternalID: "1", Season: 1, Episode: 1, End: 2}}}
+	if _, err := d.Collection(); err == nil {
+		t.Fatal("expanded IDs exceed public schema")
 	}
 }
