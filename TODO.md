@@ -106,7 +106,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 
 ## Foundation milestone notes
 
-See `docs/validation.md` for executed checks and `docs/decisions.md` for assumptions.
+See the [validation wiki](https://github.com/trentnbauer/Ordarr/wiki/Validation) for executed checks and [architecture wiki](https://github.com/trentnbauer/Ordarr/wiki/Architecture) for decisions.
 README, example environment configuration and contribution guidance are in place;
 the Phase 0 documentation item remains open pending the owner’s distribution licence choice.
 Settings displays account/instance configuration and Plex authorisation. Password
