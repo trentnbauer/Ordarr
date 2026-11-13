@@ -9,6 +9,8 @@ import (
 )
 
 type PlexConnection struct {
+	AccountID                                                         int
+	ResourceID                                                        string
 	ID, Name, BaseURL, ClientID, MachineID, ServerName, ServerVersion string
 	TokenCipher                                                       []byte `json:"-"`
 	AllowHTTP                                                         bool
@@ -21,12 +23,12 @@ type PlexConnection struct {
 func (p PlexConnection) String() string { return "Plex connection " + p.ID }
 func (s *Store) HasPlexCredentials(ctx context.Context) (bool, error) {
 	var n int
-	err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM plex_connections").Scan(&n)
+	err := s.DB.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM plex_connections)+(SELECT count(*) FROM plex_accounts)+(SELECT count(*) FROM plex_auth_attempts WHERE expires_at>?)", time.Now().Unix()).Scan(&n)
 	return n > 0, err
 }
 func loadPlexConnection(ctx context.Context, q queryer, id string) (PlexConnection, error) {
 	var c PlexConnection
-	err := q.QueryRowContext(ctx, `SELECT id,name,base_url,client_id,token_cipher,machine_id,server_name,server_version,allow_http,revision,checked_at,attempted_at,last_error FROM plex_connections WHERE id=?`, id).Scan(&c.ID, &c.Name, &c.BaseURL, &c.ClientID, &c.TokenCipher, &c.MachineID, &c.ServerName, &c.ServerVersion, &c.AllowHTTP, &c.Revision, &c.CheckedAt, &c.AttemptedAt, &c.LastError)
+	err := q.QueryRowContext(ctx, `SELECT id,name,base_url,client_id,token_cipher,machine_id,server_name,server_version,allow_http,revision,checked_at,attempted_at,last_error,coalesce(account_id,0),resource_id FROM plex_connections WHERE id=?`, id).Scan(&c.ID, &c.Name, &c.BaseURL, &c.ClientID, &c.TokenCipher, &c.MachineID, &c.ServerName, &c.ServerVersion, &c.AllowHTTP, &c.Revision, &c.CheckedAt, &c.AttemptedAt, &c.LastError, &c.AccountID, &c.ResourceID)
 	if err != nil {
 		return c, err
 	}
@@ -82,10 +84,24 @@ func (s *Store) SavePlexConnection(ctx context.Context, c PlexConnection, expect
 	}
 	defer tx.Rollback()
 	now := time.Now().Unix()
+	var accountID any
+	if c.AccountID != 0 {
+		if c.AccountID != 1 || c.ResourceID != c.MachineID {
+			return invalid("Invalid account destination.")
+		}
+		var client string
+		if err = tx.QueryRowContext(ctx, "SELECT client_id FROM plex_accounts WHERE id=1").Scan(&client); err != nil {
+			return err
+		}
+		if client != c.ClientID {
+			return ErrConflict
+		}
+		accountID = 1
+	}
 	var result sql.Result
 	if expectedRevision == 0 {
-		result, err = tx.ExecContext(ctx, `INSERT INTO plex_connections(id,name,base_url,client_id,token_cipher,machine_id,server_name,server_version,allow_http,revision,checked_at,attempted_at)
-   SELECT ?,?,?,?,?,?,?,?,?,1,?,? WHERE (SELECT count(*) FROM plex_connections)<10`, c.ID, c.Name, c.BaseURL, c.ClientID, c.TokenCipher, c.MachineID, c.ServerName, c.ServerVersion, c.AllowHTTP, now, now)
+		result, err = tx.ExecContext(ctx, `INSERT INTO plex_connections(id,name,base_url,client_id,token_cipher,machine_id,server_name,server_version,allow_http,revision,checked_at,attempted_at,account_id,resource_id)
+   SELECT ?,?,?,?,?,?,?,?,?,1,?,?,?,? WHERE (SELECT count(*) FROM plex_connections)<10`, c.ID, c.Name, c.BaseURL, c.ClientID, c.TokenCipher, c.MachineID, c.ServerName, c.ServerVersion, c.AllowHTTP, now, now, accountID, c.ResourceID)
 	} else {
 		result, err = tx.ExecContext(ctx, `UPDATE plex_connections SET name=?,base_url=?,token_cipher=?,machine_id=?,server_name=?,server_version=?,allow_http=?,revision=revision+1,checked_at=?,attempted_at=?,last_error='' WHERE id=? AND revision=? AND machine_id=? AND client_id=?`, c.Name, c.BaseURL, c.TokenCipher, c.MachineID, c.ServerName, c.ServerVersion, c.AllowHTTP, now, now, c.ID, expectedRevision, c.MachineID, c.ClientID)
 	}

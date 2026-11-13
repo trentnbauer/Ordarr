@@ -30,7 +30,7 @@
 ## Still open
 
 Password change/recovery, bootstrap provisioning beyond trusted local setup, public
-release licensing, Plex sign-in implementation/live verification, external key management/rotation,
+release licensing, Plex sign-in/live-server verification, external key management/rotation,
 provider metadata lookup, and live Plex test access belong to subsequent work. No
 Plex credentials are required for the foundation. Follow TODO.md in phase order.
 
@@ -86,3 +86,36 @@ Plex credentials are required for the foundation. Follow TODO.md in phase order.
   sign-in, user discovery, media matching and publishing remain separate milestones.
 - API assumptions and remaining live checks are recorded in `plex-api.md`. Production
   never substitutes a fixture service; only tests run disposable HTTP fixtures.
+
+## Plex account authorisation
+
+- Migration 004 adds one verified Plex account, encrypted pending device/PIN attempts
+  and explicit account/resource bindings on server connections. Local Ordarr sessions
+  and Plex identity remain separate. No username/password are sent from Ordarr to Plex.
+- Use the documented strong PIN + public Ed25519 JWK flow. Poll with a short-lived
+  signed device assertion; verify the returned JWT with the user API, then fetch
+  server resources. Never trust JWT identity claims locally. Decoded expiry is only
+  a scheduling hint and is bounded; malformed/legacy responses fail closed.
+- Attempts are encrypted, session-bound, max ten minutes, throttled to one poll per
+  two seconds and limited to five pending sessions. They are consumed atomically
+  after authorisation and removed on logout/cancellation/expiry cleanup. A GET can
+  render an attempt but cannot complete authorisation or poll a vendor API.
+- Account JWTs and device keys go only to fixed Plex account endpoints; the user
+  explicitly selects a validated resource origin, which receives only its server
+  access token. A selected PMS machine ID must equal the authorised resource ID.
+- Credentials/resources replace atomically with revision checks. Refresh uses the
+  documented nonce + signed device JWT exchange, verifies identity again and preserves
+  old state on failure. Linked server operations refresh within 15 minutes of expiry
+  and reverify resources on demand. There are no idle refresh jobs.
+- Reauthorisation can rotate the device key only for the same Plex user. It preserves
+  local linked IDs and snapshots, updates their device identifier transactionally,
+  and marks them for recheck. Switching users requires explicit account disconnect;
+  that local action removes only account-linked servers and pending attempts, never
+  manual connections, canonical entries or Plex media/playlists/devices.
+- Device keys, account/resource tokens and PIN codes use the existing encrypted vault,
+  with bindings per account/attempt. Missing keys fail closed for accounts or active
+  attempts as well as manual connections. Already-expired attempts do not require
+  regeneration of their obsolete key. Account resources are bounded at 50 servers
+  and 20 addresses per server. No untrusted response address is followed implicitly.
+- API origins are fixed in production. HTTP fixtures replace only the transport in
+  tests; production exposes no environment setting for simulated account endpoints.

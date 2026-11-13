@@ -5,7 +5,7 @@ on 13 November 2026. Its embedded OpenAPI document reports API version 1.2.3 and
 lists PMS >= 1.43.4 for that API revision. This is documentation evidence, not a live
 compatibility claim or a tested minimum server version.
 
-## Implemented read adapter
+## Implemented PMS read adapter
 
 - API Info / Content Types recommends `Accept: application/json`; the default is XML.
 - API Info / Headers and Auth defines `X-Plex-Token`, `X-Plex-Client-Identifier`,
@@ -29,7 +29,7 @@ compatibility claim or a tested minimum server version.
   totals, inconsistent sizes, oversized responses and partial scans fail closed.
   The limits are 1 MiB per response and 1,000 libraries. Unknown optional fields
   are ignored; remote response URLs/keys are never followed.
-- All requests in this milestone are GETs. There are no media-item reads, playlist
+- All PMS requests in this milestone are GETs. There are no media-item reads, playlist
   operations, Plex account changes or source-media mutations.
 
 ## Authentication and ownership limits
@@ -38,14 +38,64 @@ Successful PMS reads demonstrate accepted read access at that time. A PMS config
 for unauthenticated trusted-network access may not validate a supplied token. The root
 response can describe a server owner; that does not establish the identity or ownership
 of the connected token. Ordarr does not infer permitted users or playlist ownership from
-these responses. Those remain explicit implementation/verification work before publishing.
+these PMS responses. Account sign-in verifies the connected user independently, as
+described below; other-user permission and playlist write checks remain pending.
 
-The official docs now recommend a JWT PIN/JWK flow for new applications:
-`clients.plex.tv/api/v2/pins`, Ed25519 device signatures, an auth-app URL, token exchange,
-and nonce-based refresh for tokens with seven-day lifetimes. Legacy PIN documentation
-also remains available. Implementing account sign-in requires the whole supported
-flow, refresh, expiry/revocation and account/server discovery checks; no incomplete
-sign-in button is exposed here. No requests to these auth endpoints were made.
+## Implemented account JWT/PIN flow
+
+The same official API Info / Authenticating with Plex section documents the recommended
+JWT/PIN/JWK flow implemented on 14 November 2026:
+
+1. Generate an Ed25519 device key and stable identifier for that authorisation. POST
+   `https://clients.plex.tv/api/v2/pins` with JSON `strong: true` and public JWK fields
+   `kty: OKP`, `crv: Ed25519`, `x`, `kid`, `alg: EdDSA`.
+2. Render the documented `https://app.plex.tv/auth#?...` fragment URL with `clientID`,
+   PIN `code` and `context[device][product]`. Ordarr uses an explicit user-driven poll
+   rather than accepting a callback/forward URL. A linked account does not log anyone
+   into Ordarr or replace its administrator session.
+3. GET `https://clients.plex.tv/api/v2/pins/<pinID>?deviceJWT=<signed assertion>`.
+   The Ed25519 assertion includes `aud: plex.tv`, `iss: client ID`, `iat`, `exp`,
+   `scope` and header `kid`/`alg: EdDSA`. Pending null `authToken` is not a login.
+   Returned PIN ID/code must match the initiated attempt. Local session binding,
+   expiry, throttle and atomic consumption protect the attempt.
+4. Verify the token with `GET https://plex.tv/api/v2/user`, as documented in the
+   token verification section. The adapter expects the current user fields `id`,
+   `username`, optional `friendlyName`, `restricted`, and `anonymous`; anonymous or
+   malformed identities fail closed. No identity is taken from unverified JWT claims.
+5. Discover resources with `GET https://clients.plex.tv/api/v2/resources?includeHttps=1&includeRelay=1&includeIPv6=1`.
+   The official Talking to PMS section specifies separate per-PMS `accessToken`s and
+   connection URLs. Ordarr expects resource `clientIdentifier`, `name`, `provides`,
+   `accessToken`, `owned` and connection `uri`/`local`/`relay`. Server tokens and the
+   full resource cache stay encrypted; only safe names/URLs reach templates.
+6. Explicitly select a resource URL. It must exactly match a validated URL from the
+   verified resource list. Inspect PMS with its resource token, never the account
+   token, and compare its machine ID before adding a linked connection.
+7. Refresh via `GET https://clients.plex.tv/api/v2/auth/nonce`, then POST
+   `https://clients.plex.tv/api/v2/auth/token` with a device-signed JWT containing the
+   nonce. The returned `auth_token` is reverified with user/resources calls. Identity
+   changes are rejected. The private key and token/cache update are encrypted and
+   revision-checked; failed refreshes leave prior data intact.
+
+The official docs state seven-day account JWT lifetimes. The implementation reads
+`exp` only to schedule refresh and rejects expired or implausibly long returned JWTs;
+it relies on the authenticated Plex user endpoint to validate identity/token validity.
+It refreshes within 15 minutes of expiry when an account-linked operation is requested,
+and offers explicit refresh/reauthorisation. It performs no background polling.
+
+The required device assertion in the PIN polling query is short-lived and never logged;
+Plex account and PMS access tokens stay in headers. The browser sees a short-lived PIN
+code in the documented auth-app fragment, never an access token/private key. PIN state
+is encrypted, limited to ten minutes, bound to the originating Ordarr session, and
+consumed on success. Account operations are CSRF-protected POSTs, including polling,
+cancellation, refresh and disconnect. Local logout removes pending attempts.
+
+The cloud API origins are fixed in production and use verified TLS/inherited proxies.
+Account operations have a ten-second overall context; requests are capped at five
+seconds and are not automatically retried. Responses are limited to 1 MiB and 50 servers
+with at most 20 addresses each. Redirects and malformed/partial responses fail closed.
+No live account API authorisation was performed; tests use an explicitly injected
+transport to disposable HTTP fixtures. PIN response fields, current user/resource
+shapes, token refresh/revocation, and service/version behavior still need live verification.
 
 ## Validation and operational limits
 

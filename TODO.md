@@ -29,7 +29,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 
 ## Phase 3 — Plex connectivity and matching (MVP)
 - [x] Implement manual Plex server URL/token connection and validation.
-- [ ] Implement Plex account sign-in/authorisation using verified supported API flow.
+- [x] Implement Plex account sign-in/authorisation using verified supported API flow.
 - [x] Securely persist credentials and redact secrets.
 - [ ] Discover accessible Plex libraries and permitted users.
 - [ ] Fetch and paginate movies and individual episodes.
@@ -94,8 +94,8 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 
 ## Additional integration and safety acceptance checks
 - [ ] Publish MVP Plex playlists under the authorised administrator's Plex account and verify ownership/permissions.
-- [ ] Keep local Ordarr administrator authentication separate from Plex account connection authorisation.
-- [ ] Support both Plex account sign-in and manual Plex server URL/token connection.
+- [x] Keep local Ordarr administrator authentication separate from Plex account connection authorisation.
+- [x] Support both Plex account sign-in and manual Plex server URL/token connection.
 - [ ] Restrict playlist writes to Ordarr-created or explicitly adopted playlists; test unrelated playlist protection.
 - [ ] Persist stable managed-playlist IDs and last successfully published sequences.
 - [ ] Validate proposed playlist changes and test recovery from interrupted/failed sync without clearing valid playlists.
@@ -109,11 +109,13 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 See `docs/validation.md` for executed checks and `docs/decisions.md` for assumptions.
 README, example environment configuration and contribution guidance are in place;
 the Phase 0 documentation item remains open pending the owner’s distribution licence choice.
-Settings currently displays account and instance configuration; password change/recovery
-are not implemented. Phase 2 provides the canonical collection editor. Phase 3 now
-supports manual Plex URL/token setup, encrypted storage, rechecks and accessible-library
-discovery. Account sign-in and permitted-user discovery, media scans, matching and
-availability checks remain open. Whole seasons still use explicit episode counts.
-The combined libraries/users checklist item remains unchecked because user/account
-identity and permissions have not been implemented or verified. Adapter and browser
-tests use disposable fixtures; no live Plex server has been verified.
+Settings displays account/instance configuration and Plex authorisation. Password
+change/recovery is not implemented. Phase 2 provides the canonical collection editor.
+Phase 3 supports manual URL/token setup and the documented JWT/PIN/JWK account flow,
+nonce-based refresh, encrypted device/account/resource credentials, and explicit server
+connections using server-scoped tokens. The connected Plex identity is independently
+verified through the user API; other-user enumeration/permission checks remain open.
+The combined libraries/users item remains unchecked. Paginated movie/episode scans,
+matching, ambiguity resolution and availability checks are next. Whole seasons still
+use explicit episode counts. All account/adapter/browser integration checks use
+disposable fixtures; no live Plex account or server has been verified.

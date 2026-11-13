@@ -2,12 +2,13 @@
 
 Self-hosted watch-order management for movies and TV episodes.
 
-**Current milestone: manual Plex connectivity plus canonical collection editing.** Create mixed movie/episode watch
+**Current milestone: Plex account authorisation and canonical collection editing.** Create mixed movie/episode watch
 orders, edit entries, expand explicit seasons/ranges, preserve repeats, reorder with
 a keyboard or drag handle, move/remove selected entries, and make independent copies.
 Administrator authentication and SQLite persistence are included. Manual Plex URL/token
-setup now validates read access and discovers accessible libraries. Account sign-in,
-media matching, playlist sync and import/export remain on the [development checklist](TODO.md).
+setup validates read access and discovers accessible libraries. Plex account sign-in,
+JWT refresh and explicit account-server connections are also implemented. Media matching,
+playlist sync and import/export remain on the [development checklist](TODO.md).
 No live media-server compatibility is claimed.
 
 ## Run with Docker Compose
@@ -33,7 +34,7 @@ docker compose exec ordarr /usr/local/bin/ordarr healthcheck
 docker compose down
 ```
 
-The locally built image tag is `ordarr:0.3.0-dev`; no registry release is published.
+The locally built image tag is `ordarr:0.4.0-dev`; no registry release is published.
 
 ## Create a watch order
 
@@ -96,15 +97,60 @@ to ten connections and 1,000 discovered libraries per connection are supported.
 
 **This checks connectivity and library read access only.** A server may allow read
 access from a trusted network even with an invalid token. The check does not prove
-Plex account identity, ownership or playlist write permission. Account sign-in, user
-selection, media scans/matching and publishing are not implemented yet. No Plex
+Plex account identity, ownership or playlist write permission. Use account sign-in below
+to verify the connected Plex identity. Other-user selection, media scans/matching and
+publishing are not implemented yet. No Plex
 media, users, server settings or playlists are modified by this milestone. Removing
 an Ordarr connection is local only; revoke an exposed token separately through Plex.
 Manual tokens may expire or be revoked; follow [Plex's token guidance](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/).
 
+### Sign in with a Plex account
+
+Choose **Sign in with Plex** on the Plex settings page. Ordarr creates a short-lived
+strong PIN and an Ed25519 device key, then provides **Open Plex authorisation**. Sign
+in on Plex's own website in the separate tab; Ordarr never collects your Plex password.
+Return to the original Ordarr browser session and choose **Check Plex authorisation**.
+There is no external callback URL or automatic account-changing GET request.
+
+Each attempt belongs to that specific logged-in Ordarr session, expires within ten
+minutes, and cannot be polled more than once every two seconds. Cancellation is local;
+logout invalidates the pending attempt. A failed or abandoned attempt leaves any
+existing account intact. Only one verified Plex account is connected per instance.
+
+After Plex validates the token, Ordarr verifies the account using Plex's user endpoint
+and discovers its available servers. Select a returned server address explicitly and
+confirm plaintext HTTP if applicable. Ordarr verifies the selected server's machine ID
+and library read access before saving it. The account token is sent only to the fixed
+Plex account API origins; a media server receives its own server-scoped resource token.
+Names, ownership indicators and server addresses come from the last verified account
+resource response and are not claims of playlist write permission.
+
+The flow uses Plex's recommended JWT/PIN/JWK protocol, including nonce-based device
+refresh. Device assertions expire after five minutes. Plex account JWT expiry is used
+only for refresh scheduling; account identity comes from an authenticated user API
+response. **Refresh Plex account** requests a fresh token and resource list. Using an
+account-linked connection refreshes an expired/nearly-expired token (within 15 minutes)
+on demand, and verifies current account/resource access before contacting the PMS.
+There is no idle polling worker. Failed refreshes retain encrypted credentials and last
+good snapshots; an explicit reauthorisation is available if Plex revokes the device.
+
+Reauthorisation must use the same Plex user ID, and may replace the device key. Linked
+connections keep their local IDs and library snapshots but require a recheck after the
+device changes. To switch users, explicitly disconnect the current account by typing its
+Plex username. This removes local account credentials and account-linked connections;
+manual connections and canonical collections remain. No Plex device, playlist or media
+is remotely deleted. Revoke a device separately through Plex's authorised devices UI.
+
+Account-linked server tokens are managed from the verified resource list rather than
+manually overwritten. Removing a single connection does not disconnect the account.
+Traditional opaque manual tokens remain supported; account sign-in requires the JWT
+flow documented by Plex. Unsupported/incomplete authentication responses fail closed.
+The account/resource and browser tests use disposable fixtures; no real Plex account
+sign-in or server compatibility is claimed as live-verified.
+
 ### Credential storage and backups
 
-Tokens are AES-256-GCM encrypted in SQLite with fresh nonces and connection-bound
+Tokens, Ed25519 private keys, pending PIN codes and server resource credentials are AES-256-GCM encrypted in SQLite with fresh nonces and connection-bound
 associated data. The 32-byte `credentials.key` is generated atomically in the persistent
 data directory, mode 0600. It must be backed up **with the matching database** and
 kept private. Startup refuses to replace a missing key when saved credentials exist,
@@ -117,7 +163,7 @@ read both the key and database or control the host. The key is in the same named
 for reliable self-hosted persistence. Back up the whole stopped volume, including key,
 database and any SQLite sidecars. Restoring a backup can also restore then-valid
 Ordarr sessions and Plex tokens; protect backups and revoke credentials when needed.
-The application never returns tokens in rendered forms and uses fixed external-error
+The application never returns account/server tokens or private keys in rendered forms and uses fixed external-error
 messages instead of logging request headers, response bodies or credential values.
 
 ## Develop
@@ -186,12 +232,21 @@ Optional browser checks require Playwright installed outside application depende
 disposable local Plex-shaped fixture, including encrypted-token restart and failed
 recheck retention. This is not live Plex verification. Set `CHROMIUM_PATH` to a system Chromium executable,
 or let Playwright use its downloaded browser. CI runs the Go checks and Compose smoke;
-the workflow itself has not been exercised on GitHub yet.
+the workflow itself has not been inspected on GitHub. The optional account browser
+suite runs the real application against test-only account/PMS transports:
+
+```sh
+ORDARR_ACCOUNT_BROWSER=1 CHROMIUM_PATH=/usr/bin/chromium \
+  go test -race -count=1 -run '^TestBrowserPlexAccountFlow$' -v ./internal/app
+```
+
+The account browser case is skipped in the ordinary Go run and exercised separately
+when enabled. It never opens a real Plex sign-in page or uses real credentials.
 
 In a managed cloud build requiring a proxy CA:
 
 ```sh
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -t ordarr:0.3.0-dev .
+docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -t ordarr:0.4.0-dev .
 ```
 
 The optional BuildKit secret supplies trust during dependency download without placing

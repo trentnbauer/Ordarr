@@ -113,6 +113,9 @@ func (s *Store) AddSession(ctx context.Context, token string, expiry time.Time) 
 	if _, err = tx.ExecContext(ctx, "INSERT INTO sessions VALUES(?,?,1)", tokenHash(token), expiry.Unix()); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM plex_auth_attempts WHERE expires_at<=? OR session_hash NOT IN (SELECT token_hash FROM sessions)", time.Now().Unix()); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 func (s *Store) Authenticated(ctx context.Context, token string) (bool, error) {
@@ -124,6 +127,16 @@ func (s *Store) Authenticated(ctx context.Context, token string) (bool, error) {
 	return n == 1, err
 }
 func (s *Store) DeleteSession(ctx context.Context, token string) error {
-	_, err := s.DB.ExecContext(ctx, "DELETE FROM sessions WHERE token_hash=?", tokenHash(token))
-	return err
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, "DELETE FROM plex_auth_attempts WHERE session_hash=?", tokenHash(token)); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE token_hash=?", tokenHash(token)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

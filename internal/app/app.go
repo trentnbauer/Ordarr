@@ -64,6 +64,8 @@ func LoadConfig() (Config, error) {
 }
 
 type App struct {
+	accountMu sync.Mutex
+	accounts  *plex.AccountClient
 	plex      *plex.Client
 	vault     *secret.Vault
 	store     *store.Store
@@ -87,6 +89,9 @@ type page struct {
 	Input                                                entryInput
 	PlexConnections                                      []plexView
 	Notice                                               string
+	Account                                              *accountView
+	AuthAttempt                                          *authView
+	AccountServers                                       []accountServerView
 }
 
 func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
@@ -106,7 +111,7 @@ func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
+	return &App{accounts: plex.NewAccountClient(nil), plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
 }
 func randomToken() string {
 	var b [32]byte
@@ -139,6 +144,13 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/plex", a.protected(a.plexSave))
 	m.HandleFunc("POST /settings/plex/{id}/check", a.protected(a.plexCheck))
 	m.HandleFunc("POST /settings/plex/{id}/delete", a.protected(a.plexDelete))
+	m.HandleFunc("POST /settings/plex/account/start", a.protected(a.accountStart))
+	m.HandleFunc("GET /settings/plex/account/attempt/{attempt}", a.protected(a.accountAttempt))
+	m.HandleFunc("POST /settings/plex/account/attempt/{attempt}", a.protected(a.accountPoll))
+	m.HandleFunc("POST /settings/plex/account/attempt/{attempt}/cancel", a.protected(a.accountCancel))
+	m.HandleFunc("POST /settings/plex/account/refresh", a.protected(a.accountRefresh))
+	m.HandleFunc("POST /settings/plex/account/disconnect", a.protected(a.accountDisconnect))
+	m.HandleFunc("POST /settings/plex/account/connect", a.protected(a.accountConnect))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {
@@ -161,7 +173,7 @@ func (a *App) security(next http.Handler) http.Handler {
 				}
 			}
 			limit := int64(8192)
-			if strings.HasPrefix(r.URL.Path, "/collections") {
+			if strings.HasPrefix(r.URL.Path, "/collections") || strings.HasPrefix(r.URL.Path, "/settings/plex") {
 				limit = 128 << 10
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)

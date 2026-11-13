@@ -16,6 +16,7 @@ import (
 // Only this public projection reaches templates. No ciphertext or raw token is
 // included, even for the local administrator or while reporting validation errors.
 type plexView struct {
+	AccountLinked                                           bool
 	ID, Name, BaseURL, MachineID, ServerName, ServerVersion string
 	Revision                                                int
 	AllowHTTP                                               bool
@@ -24,31 +25,46 @@ type plexView struct {
 }
 
 func plexPublic(c store.PlexConnection) plexView {
-	return plexView{ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, MachineID: c.MachineID, ServerName: c.ServerName, ServerVersion: c.ServerVersion, Revision: c.Revision, AllowHTTP: c.AllowHTTP, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339), AttemptedAt: time.Unix(c.AttemptedAt, 0).UTC().Format(time.RFC3339), LastError: c.LastError, Libraries: c.Libraries}
+	return plexView{AccountLinked: c.AccountID == 1, ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, MachineID: c.MachineID, ServerName: c.ServerName, ServerVersion: c.ServerVersion, Revision: c.Revision, AllowHTTP: c.AllowHTTP, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339), AttemptedAt: time.Unix(c.AttemptedAt, 0).UTC().Format(time.RFC3339), LastError: c.LastError, Libraries: c.Libraries}
 }
-func (a *App) renderPlex(w http.ResponseWriter, r *http.Request, status int, message, notice string) {
-	ids, err := a.store.PlexConnectionIDs(r.Context())
+func (a *App) plexPage(ctx context.Context) (page, error) {
+	p := page{Title: "Plex connections", Mode: "plex"}
+	ids, err := a.store.PlexConnectionIDs(ctx)
 	if err != nil {
-		a.fail(w, "Plex connection list failed")
-		return
+		return p, err
 	}
-	p := page{Title: "Plex connections", Mode: "plex", Error: message, Notice: notice}
 	for _, id := range ids {
-		c, err := a.store.PlexConnection(r.Context(), id)
+		c, err := a.store.PlexConnection(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {
-			a.fail(w, "Plex connection lookup failed")
-			return
+			return p, err
 		}
 		p.PlexConnections = append(p.PlexConnections, plexPublic(c))
 	}
+	p.Account, p.AccountServers, err = a.accountProjection(ctx)
+	return p, err
+}
+func (a *App) renderPlex(w http.ResponseWriter, r *http.Request, status int, message, notice string) {
+	p, err := a.plexPage(r.Context())
+	if err != nil {
+		a.fail(w, "Plex account page failed")
+		return
+	}
+	p.Error = message
+	p.Notice = notice
 	a.render(w, r, status, p)
 }
 func (a *App) plexSettings(w http.ResponseWriter, r *http.Request) {
 	notice := ""
 	switch r.URL.Query().Get("result") {
+	case "account":
+		notice = "Plex account authorised. Choose a server connection explicitly below."
+	case "refreshed":
+		notice = "Plex account token and available server resources refreshed."
+	case "disconnected":
+		notice = "Plex account and its linked connections removed locally. Manual connections and collections were retained."
 	case "saved":
 		notice = "Connection validated and saved. Accessible libraries were refreshed."
 	case "checked":
@@ -108,6 +124,10 @@ func (a *App) plexSave(w http.ResponseWriter, r *http.Request) {
 		c, err = a.store.PlexConnection(r.Context(), id)
 		if err != nil {
 			a.plexFailure(w, r, err)
+			return
+		}
+		if c.AccountID != 0 {
+			a.renderPlex(w, r, 400, "This connection uses a Plex account. Recheck it to refresh its server token, or remove it and add a manual connection.", "")
 			return
 		}
 		if c.Revision != expected {
@@ -172,13 +192,30 @@ func (a *App) plexCheck(w http.ResponseWriter, r *http.Request) {
 		a.plexFailure(w, r, store.ErrConflict)
 		return
 	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	if c.AccountID == 1 {
+		if !a.lockAccount(w, r) {
+			return
+		}
+		defer a.accountMu.Unlock()
+		c, err = a.refreshLinked(ctx, c)
+		if err != nil {
+			// A cloud/account failure also makes this recheck unsuccessful. Keep the
+			// old credential and snapshot, but never present it as a fresh success.
+			if saveErr := a.store.PlexCheckFailed(r.Context(), c.ID, c.Revision, "Plex account verification or resource refresh failed. Cached libraries may be stale."); saveErr != nil {
+				a.plexFailure(w, r, saveErr)
+				return
+			}
+			a.accountError(w, r, err)
+			return
+		}
+	}
 	token, err := a.vault.Open(c.TokenCipher, "plex:"+c.ID+":token")
 	if err != nil {
 		a.plexFailure(w, r, err)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-	defer cancel()
 	snapshot, err := a.plex.Inspect(ctx, c.BaseURL, token, c.ClientID, c.AllowHTTP)
 	if err == nil && snapshot.MachineID != c.MachineID {
 		err = errors.New("The address identifies a different Plex server. The saved destination and libraries were retained.")
