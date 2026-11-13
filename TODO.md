@@ -32,7 +32,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Implement Plex account sign-in/authorisation using verified supported API flow.
 - [x] Securely persist credentials and redact secrets.
 - [ ] Discover accessible Plex libraries and permitted users.
-- [ ] Fetch and paginate movies and individual episodes.
+- [x] Fetch and paginate movies and individual episodes.
 - [ ] Match by stable provider IDs; add validated fallback and manual resolution.
 - [ ] Show per-destination available/missing/unmatched states.
 - [ ] Test authentication errors, unavailable servers and ambiguous matches.
@@ -115,7 +115,7 @@ Phase 3 supports manual URL/token setup and the documented JWT/PIN/JWK account f
 nonce-based refresh, encrypted device/account/resource credentials, and explicit server
 connections using server-scoped tokens. The connected Plex identity is independently
 verified through the user API; other-user enumeration/permission checks remain open.
-The combined libraries/users item remains unchecked. Paginated movie/episode scans,
-matching, ambiguity resolution and availability checks are next. Whole seasons still
+The combined libraries/users item remains unchecked. Explicit movie/episode page browsing is implemented with a bounded persistent cache.
+Complete matching scans, ambiguity resolution and availability checks are next. Whole seasons still
 use explicit episode counts. All account/adapter/browser integration checks use
 disposable fixtures; no live Plex account or server has been verified.

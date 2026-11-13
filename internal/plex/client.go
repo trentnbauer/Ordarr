@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const clientVersion = "0.5.0-dev"
+
 var ErrAuth = errors.New("Plex rejected the token or denied library access. Check or replace the token.")
 var ErrUnavailable = errors.New("Plex could not be reached securely. Check the server address, network access and TLS certificate.")
 var ErrResponse = errors.New("Plex returned an invalid or incomplete response; the saved connection was not replaced.")
@@ -112,6 +114,9 @@ func ValidToken(token string) bool {
 	return true
 }
 func (c *Client) get(ctx context.Context, base, path, token, clientID string, target any, headers *http.Header) error {
+	return c.getLimit(ctx, base, path, token, clientID, target, headers, 1<<20)
+}
+func (c *Client) getLimit(ctx context.Context, base, path, token, clientID string, target any, headers *http.Header, limit int64) error {
 	// Only fixed application paths reach this method; response keys/URLs are never followed.
 	for attempt := 0; attempt < 2; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
@@ -126,7 +131,7 @@ func (c *Client) get(ctx context.Context, base, path, token, clientID string, ta
 		req.Header.Set("X-Plex-Token", token)
 		req.Header.Set("X-Plex-Client-Identifier", clientID)
 		req.Header.Set("X-Plex-Product", "Ordarr")
-		req.Header.Set("X-Plex-Version", "0.3.0-dev")
+		req.Header.Set("X-Plex-Version", clientVersion)
 		res, err := c.http.Do(req)
 		if err != nil {
 			return ErrUnavailable
@@ -162,9 +167,9 @@ func (c *Client) get(ctx context.Context, base, path, token, clientID string, ta
 			res.Body.Close()
 			return ErrResponse
 		}
-		data, err := io.ReadAll(io.LimitReader(res.Body, 1<<20+1))
+		data, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
 		res.Body.Close()
-		if err != nil || len(data) > 1<<20 {
+		if err != nil || int64(len(data)) > limit {
 			return ErrResponse
 		}
 		if err = json.Unmarshal(data, target); err != nil {

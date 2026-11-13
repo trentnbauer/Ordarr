@@ -62,6 +62,8 @@ func newAccountFixture(t *testing.T) *accountFixture {
 		}
 		if r.URL.Path == "/" {
 			io.WriteString(w, `{"MediaContainer":{"machineIdentifier":"resource-machine","friendlyName":"Account server","version":"1.43.4"}}`)
+		} else if r.URL.Path == "/library/sections/1/all" {
+			io.WriteString(w, `{"MediaContainer":{"size":1,"offset":0,"totalSize":1,"Metadata":[{"ratingKey":"1","type":"movie","title":"Account movie"}]}}`)
 		} else {
 			io.WriteString(w, `{"MediaContainer":{"size":1,"Directory":[{"key":"1","title":"Account movies","type":"movie"}]}}`)
 		}

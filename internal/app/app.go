@@ -81,6 +81,7 @@ type attempt struct {
 	until time.Time
 }
 type page struct {
+	LibraryMedia                                         *libraryMediaView
 	Title, Mode, CSRF, Error, Username, Address, DataDir string
 	Secure                                               bool
 	Collections                                          []store.CollectionSummary
@@ -151,6 +152,8 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/plex/account/refresh", a.protected(a.accountRefresh))
 	m.HandleFunc("POST /settings/plex/account/disconnect", a.protected(a.accountDisconnect))
 	m.HandleFunc("POST /settings/plex/account/connect", a.protected(a.accountConnect))
+	m.HandleFunc("GET /settings/plex/{id}/libraries/{library}/media", a.protected(a.libraryMedia))
+	m.HandleFunc("POST /settings/plex/{id}/libraries/{library}/media", a.protected(a.fetchLibraryMedia))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {

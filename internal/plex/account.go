@@ -113,7 +113,7 @@ func (c *AccountClient) request(ctx context.Context, method, origin, path string
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Plex-Client-Identifier", d.ClientID)
 	req.Header.Set("X-Plex-Product", "Ordarr")
-	req.Header.Set("X-Plex-Version", "0.4.0-dev")
+	req.Header.Set("X-Plex-Version", clientVersion)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

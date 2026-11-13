@@ -8,7 +8,7 @@ import time
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--container', default='ordarr-ordarr-1')
-p.add_argument('--image', default='ordarr:0.4.0-dev')
+p.add_argument('--image', default='ordarr:0.5.0-dev')
 a = p.parse_args()
 env = dict(os.environ)
 for key in ('DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_TLS', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'):

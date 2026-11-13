@@ -126,6 +126,9 @@ func (s *Store) SavePlexConnection(ctx context.Context, c PlexConnection, expect
 			return err
 		}
 	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM plex_media_pages WHERE connection_id=? AND library_key NOT IN (SELECT library_key FROM plex_libraries WHERE connection_id=?)", c.ID, c.ID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 func (s *Store) PlexCheckFailed(ctx context.Context, id string, revision int, message string) error {
