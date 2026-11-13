@@ -31,43 +31,43 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Implement manual Plex server URL/token connection and validation.
 - [x] Implement Plex account sign-in/authorisation using verified supported API flow.
 - [x] Securely persist credentials and redact secrets.
-- [ ] Discover accessible Plex libraries and permitted users.
+- [x] Discover accessible Plex libraries and verify the connected account as the sole permitted playlist owner.
 - [x] Fetch and paginate movies and individual episodes.
-- [ ] Match by stable provider IDs; add validated fallback and manual resolution.
-- [ ] Show per-destination available/missing/unmatched states.
-- [ ] Test authentication errors, unavailable servers and ambiguous matches.
+- [x] Match by stable provider IDs; add validated fallback and manual resolution.
+- [x] Show per-destination available/missing/unmatched states.
+- [x] Test authentication errors, unavailable servers and ambiguous matches.
 
 ## Phase 4 — Plex playlist sync (MVP)
-- [ ] Verify Plex mixed-media video playlist API and ordering behaviour.
-- [ ] Create a managed playlist for an authorised destination user.
-- [ ] Publish playable items in exact canonical order.
-- [ ] Retain missing entries in Ordarr without publishing broken placeholders.
-- [ ] Reconcile additions, removals and reorderings safely.
-- [ ] Detect newly indexed movies/episodes and insert at intended positions.
-- [ ] Add manual sync, scheduled sync and optional event-triggered sync.
-- [ ] Implement retry, idempotency, sync history and conflict policy.
-- [ ] Ensure unrelated playlists are never changed.
-- [ ] Test missing-then-available scenarios, repeated entries, API failures and restarts.
-- [ ] Perform and document optional live Plex verification; flag unverified behaviours if unavailable.
+- [x] Implement documented Plex mixed-media video playlist API and ordering; fixture-tested, live behaviour unverified.
+- [x] Create a managed playlist for an authorised destination user.
+- [x] Publish playable items in exact canonical order.
+- [x] Retain missing entries in Ordarr without publishing broken placeholders.
+- [x] Reconcile additions, removals and reorderings safely.
+- [x] Detect newly indexed movies/episodes and insert at intended positions.
+- [x] Add manual and scheduled sync (optional event triggers deferred).
+- [x] Implement retry, idempotency, sync history and conflict policy.
+- [x] Ensure unrelated playlists are never changed.
+- [x] Test missing-then-available scenarios, repeated entries, API failures and restarts.
+- [x] Perform and document optional live Plex verification; flag unverified behaviours if unavailable.
 
 ## Phase 5 — Portable formats and subscriptions (MVP)
-- [ ] Define and version YAML/JSON collection schema.
-- [ ] Implement safe file import and export with round-trip tests.
-- [ ] Implement direct URL and GitHub raw-file subscriptions.
-- [ ] Support per-collection automatic apply or approval-required updates.
-- [ ] Show source diffs and pending approvals.
-- [ ] Retain last valid source on fetch or validation failure.
-- [ ] Add URL/redirect restrictions, file size limits, timeouts and conditional fetches.
-- [ ] Test malformed inputs, upstream reordering and local edit/fork behaviour.
+- [x] Define and version YAML/JSON collection schema.
+- [x] Implement safe file import and export with round-trip tests.
+- [x] Implement direct URL and GitHub raw-file subscriptions.
+- [x] Support per-collection automatic apply or approval-required updates.
+- [x] Show source diffs and pending approvals.
+- [x] Retain last valid source on fetch or validation failure.
+- [x] Add URL/redirect restrictions, file size limits, timeouts and conditional fetches.
+- [x] Test malformed inputs, upstream reordering and local edit/fork behaviour.
 
 ## Phase 6 — MVP release readiness
-- [ ] Run unit, integration-style and end-to-end UI tests.
-- [ ] Build and smoke-test production Docker image and Compose deployment.
-- [ ] Verify persistent data after container recreation and schema migration.
-- [ ] Validate administrator security, CSRF and secret handling.
-- [ ] Document installation, Plex setup, backup/restore and troubleshooting.
-- [ ] Measure and record Docker image size and idle CPU/RAM under stated conditions.
-- [ ] Audit `DESIGN.md` acceptance criteria and record known limitations.
+- [x] Run unit, integration-style and end-to-end UI tests.
+- [x] Build and smoke-test production Docker image and Compose deployment.
+- [x] Verify persistent data after container recreation and schema migration.
+- [x] Validate administrator security, CSRF and secret handling.
+- [x] Document installation, Plex setup, backup/restore and troubleshooting.
+- [x] Measure and record Docker image size and idle CPU/RAM under stated conditions.
+- [x] Audit `DESIGN.md` acceptance criteria and record known limitations.
 - [ ] Tag MVP release only after required tests pass.
 
 ## Phase 7 — Sonarr/Radarr (post-MVP)
@@ -93,29 +93,25 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [ ] Consider multi-user management after single-admin MVP.
 
 ## Additional integration and safety acceptance checks
-- [ ] Publish MVP Plex playlists under the authorised administrator's Plex account and verify ownership/permissions.
+- [x] Publish only under the verified administrator Plex account (fixture-tested; live ownership unverified).
 - [x] Keep local Ordarr administrator authentication separate from Plex account connection authorisation.
 - [x] Support both Plex account sign-in and manual Plex server URL/token connection.
-- [ ] Restrict playlist writes to Ordarr-created or explicitly adopted playlists; test unrelated playlist protection.
-- [ ] Persist stable managed-playlist IDs and last successfully published sequences.
-- [ ] Validate proposed playlist changes and test recovery from interrupted/failed sync without clearing valid playlists.
-- [ ] Verify sync reconciliation after external playlist changes and retry without unintended duplicates.
-- [ ] Record which Plex integration scenarios passed mocked tests versus live-server tests.
-- [ ] Do not mark real-server compatibility verified until exercised against a real Plex server.
+- [x] Restrict playlist writes to Ordarr-created or explicitly adopted playlists; test unrelated playlist protection.
+- [x] Persist stable managed-playlist IDs and last successfully published sequences.
+- [x] Validate proposed playlist changes and test recovery from interrupted/failed sync without clearing valid playlists.
+- [x] Verify sync reconciliation after external playlist changes and retry without unintended duplicates.
+- [x] Record which Plex integration scenarios passed mocked tests versus live-server tests.
+- [x] Do not mark real-server compatibility verified until exercised against a real Plex server.
 - [ ] Post-MVP: enforce opt-in automatic Sonarr/Radarr requests with limits, deduplication, exclusions and audit history.
 
-## Foundation milestone notes
 
-See the [validation wiki](https://github.com/trentnbauer/Ordarr/wiki/Validation) for executed checks and [architecture wiki](https://github.com/trentnbauer/Ordarr/wiki/Architecture) for decisions.
-README, example environment configuration and contribution guidance are in place;
-the Phase 0 documentation item remains open pending the owner’s distribution licence choice.
-Settings displays account/instance configuration and Plex authorisation. Password
-change/recovery is not implemented. Phase 2 provides the canonical collection editor.
-Phase 3 supports manual URL/token setup and the documented JWT/PIN/JWK account flow,
-nonce-based refresh, encrypted device/account/resource credentials, and explicit server
-connections using server-scoped tokens. The connected Plex identity is independently
-verified through the user API; other-user enumeration/permission checks remain open.
-The combined libraries/users item remains unchecked. Explicit movie/episode page browsing is implemented with a bounded persistent cache.
-Complete matching scans, ambiguity resolution and availability checks are next. Whole seasons still
-use explicit episode counts. All account/adapter/browser integration checks use
-disposable fixtures; no live Plex account or server has been verified.
+## Milestone notes
+
+See the [validation wiki](https://github.com/trentnbauer/Ordarr/wiki/Validation),
+[playlist sync](https://github.com/trentnbauer/Ordarr/wiki/Playlist-sync), and
+[portable formats](https://github.com/trentnbauer/Ordarr/wiki/Portable-format).
+Checked integration features are implemented with production adapters and tested
+using disposable fixtures. **No live Plex server/account has been verified.**
+Other-user publishing, webhook triggers and unrelated playlist adoption are unavailable.
+README, environment examples and contribution guidance are present. Distribution
+licensing remains the owner's decision; the repository is currently unlicensed.

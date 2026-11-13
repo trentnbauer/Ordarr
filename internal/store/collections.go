@@ -208,6 +208,13 @@ func (s *Store) ChangeCollection(ctx context.Context, id string, revision int, c
 	if revision != c.Revision {
 		return ErrConflict
 	}
+	var subscribed int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM subscriptions WHERE collection_id=?", id).Scan(&subscribed); err != nil {
+		return err
+	}
+	if subscribed > 0 {
+		return invalid("Fork this subscribed collection before making local edits.")
+	}
 	oldIDs := map[string]bool{}
 	for _, e := range c.Entries {
 		oldIDs[e.ID] = true

@@ -131,6 +131,34 @@ func (a *App) collectionDetail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	ids, err := a.store.PlexConnectionIDs(r.Context())
+	if err != nil {
+		a.fail(w, "connection list failed")
+		return
+	}
+	for _, id := range ids {
+		conn, err := a.store.PlexConnection(r.Context(), id)
+		if err != nil {
+			a.fail(w, "connection lookup failed")
+			return
+		}
+		p.PlexConnections = append(p.PlexConnections, plexPublic(conn))
+	}
+	p.Destinations, err = a.store.Destinations(r.Context(), c.ID)
+	if err != nil {
+		a.fail(w, "destinations failed")
+		return
+	}
+	p.SyncRuns, err = a.store.SyncRuns(r.Context(), c.ID)
+	if err != nil {
+		a.fail(w, "sync history failed")
+		return
+	}
+	p.Source, err = a.optionalSource(r.Context(), c.ID)
+	if err != nil {
+		a.fail(w, "subscription lookup failed")
+		return
+	}
 	a.render(w, r, 200, p)
 }
 func (a *App) changeCollection(w http.ResponseWriter, r *http.Request) {

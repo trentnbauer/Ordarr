@@ -64,23 +64,30 @@ func LoadConfig() (Config, error) {
 }
 
 type App struct {
-	accountMu sync.Mutex
-	accounts  *plex.AccountClient
-	plex      *plex.Client
-	vault     *secret.Vault
-	store     *store.Store
-	config    Config
-	logger    *slog.Logger
-	templates *template.Template
-	dummy     []byte
-	mu        sync.Mutex
-	attempts  map[string]attempt
+	wake        chan struct{}
+	workersDone chan struct{}
+	accountMu   sync.Mutex
+	accounts    *plex.AccountClient
+	plex        *plex.Client
+	vault       *secret.Vault
+	store       *store.Store
+	config      Config
+	logger      *slog.Logger
+	templates   *template.Template
+	dummy       []byte
+	mu          sync.Mutex
+	attempts    map[string]attempt
 }
 type attempt struct {
 	count int
 	until time.Time
 }
 type page struct {
+	Source                                               *sourceView
+	Destinations                                         []store.Destination
+	SyncRuns                                             []store.SyncRun
+	Jobs                                                 []store.Job
+	MatchView                                            *matchView
 	LibraryMedia                                         *libraryMediaView
 	Title, Mode, CSRF, Error, Username, Address, DataDir string
 	Secure                                               bool
@@ -112,7 +119,7 @@ func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{accounts: plex.NewAccountClient(nil), plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
+	return &App{wake: make(chan struct{}, 1), workersDone: make(chan struct{}), accounts: plex.NewAccountClient(nil), plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
 }
 func randomToken() string {
 	var b [32]byte
@@ -154,6 +161,21 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/plex/account/connect", a.protected(a.accountConnect))
 	m.HandleFunc("GET /settings/plex/{id}/libraries/{library}/media", a.protected(a.libraryMedia))
 	m.HandleFunc("POST /settings/plex/{id}/libraries/{library}/media", a.protected(a.fetchLibraryMedia))
+	m.HandleFunc("GET /jobs", a.protected(a.jobsPage))
+	m.HandleFunc("POST /settings/plex/{id}/scan", a.protected(a.queueScan))
+	m.HandleFunc("GET /collections/{id}/matches/{connection}", a.protected(a.matchesPage))
+	m.HandleFunc("POST /collections/{id}/matches/{connection}", a.protected(a.manualMatch))
+	m.HandleFunc("POST /collections/{id}/destinations", a.protected(a.createDestination))
+	m.HandleFunc("POST /destinations/{destination}/sync", a.protected(a.queueSync))
+	m.HandleFunc("POST /destinations/{destination}/policy", a.protected(a.destinationPolicy))
+	m.HandleFunc("POST /destinations/{destination}/recreate", a.protected(a.recreateDestination))
+	m.HandleFunc("POST /sync-runs/{run}/approve", a.protected(a.approveSync))
+	m.HandleFunc("GET /import", a.protected(a.portablePage))
+	m.HandleFunc("POST /import", a.protected(a.importFile))
+	m.HandleFunc("POST /subscriptions", a.protected(a.subscribe))
+	m.HandleFunc("GET /collections/{id}/export", a.protected(a.exportFile))
+	m.HandleFunc("GET /collections/{id}/source", a.protected(a.sourcePage))
+	m.HandleFunc("POST /collections/{id}/source", a.protected(a.updateSource))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {
@@ -176,11 +198,23 @@ func (a *App) security(next http.Handler) http.Handler {
 				}
 			}
 			limit := int64(8192)
+			if r.URL.Path == "/import" {
+				limit = 4 << 20
+			}
 			if strings.HasPrefix(r.URL.Path, "/collections") || strings.HasPrefix(r.URL.Path, "/settings/plex") {
 				limit = 128 << 10
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
-			if err := r.ParseForm(); err != nil {
+			var formErr error
+			if r.URL.Path == "/import" && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+				formErr = r.ParseMultipartForm(2 << 20)
+				if r.MultipartForm != nil {
+					defer r.MultipartForm.RemoveAll()
+				}
+			} else {
+				formErr = r.ParseForm()
+			}
+			if formErr != nil {
 				http.Error(w, "Invalid or oversized form", 400)
 				return
 			}

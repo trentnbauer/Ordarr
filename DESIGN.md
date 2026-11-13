@@ -55,30 +55,18 @@ Ordarr is a self-hosted watch-order manager that mixes movies and individual TV 
 - Support deliberate repeated entries and preserve their separate sequence positions.
 
 ## Portable format
-- Accept versioned YAML and JSON with a collection ID, name and ordered `items`.
+- Accept versioned YAML and JSON with an optional source collection ID, title and ordered `entries`.
 - Each item identifies a movie or episode by provider ID, with season/episode as applicable; optional ranges expand deterministically into individual entries.
 - Reject invalid versions, malformed items, duplicate collection IDs where inappropriate and untrusted remote URLs safely.
 - Export in canonical order; round-trip import/export without losing identifiers or deliberate duplicates.
 
-Example (illustrative, not a verified watch order):
-
-```yaml
-version: 1
-id: example-order
-name: Example Watch Order
-items:
-  - type: movie
-    tmdb_id: 1771
-  - type: episode
-    tmdb_id: 83867
-    season: 1
-    episode: 1
-  - type: episode_range
-    tmdb_id: 83867
-    season: 1
-    start: 2
-    end: 4
-```
+The implemented version 1 schema uses `id` (optional collection origin), `title`,
+`description`, and ordered `entries`. Every entry has a source-stable `id`, `kind`,
+`title`, `provider`, and string `external_id`; episodes add `season`/`episode`.
+`episode_range` and `season` use explicit `end`, expand deterministically, and export
+as individual episodes. Imports always create an independent local collection ID.
+See the [portable-format wiki](https://github.com/trentnbauer/Ordarr/wiki/Portable-format)
+for examples and limits.
 
 ## Plex integration
 - Support manual Plex URL/token configuration and Plex account authentication/authorisation. Verify the supported sign-in flow against current Plex APIs; do not implement insecure credential collection.

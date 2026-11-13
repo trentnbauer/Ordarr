@@ -63,6 +63,12 @@ func run() error {
 	server := http.Server{Addr: c.Address, Handler: a.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	workerCtx, stopWorkers := context.WithCancel(ctx)
+	if err = a.StartBackground(workerCtx); err != nil {
+		stopWorkers()
+		return err
+	}
+	defer func() { stopWorkers(); a.WaitBackground() }()
 	done := make(chan error, 1)
 	go func() { logger.Info("Ordarr listening", "address", c.Address); done <- server.ListenAndServe() }()
 	select {

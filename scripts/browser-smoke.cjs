@@ -171,6 +171,16 @@ const assert = require('node:assert/strict');
     await page.reload();
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.screenshot({ path: join(tmpdir(), 'ordarr-dashboard-desktop.png'), fullPage: true });
+    await page.getByRole('link', {name:'Import / subscribe',exact:true}).click();
+    const portable = JSON.stringify({version:1,title:'Browser imported',entries:[{id:'a',kind:'movie',title:'Repeat',provider:'tmdb',external_id:'1'},{id:'b',kind:'movie',title:'Repeat',provider:'tmdb',external_id:'1'}]});
+    await page.getByLabel('Collection file',{exact:true}).setInputFiles({name:'collection.json',mimeType:'application/json',buffer:Buffer.from(portable)});
+    await page.getByRole('button',{name:'Import collection',exact:true}).click();
+    await page.getByRole('heading',{name:'Browser imported',exact:true}).waitFor();
+    assert.equal(await page.locator('#entry-list .entry').count(),2);
+    const exported=await page.context().request.get(page.url()+'/export?format=json');
+    assert.equal((await exported.json()).entries.length,2);
+    await page.getByRole('link',{name:'Activity',exact:true}).click();
+    await page.getByRole('heading',{name:'Activity',exact:true}).waitFor();
     assert.deepEqual(errors, []);
     console.log('PASS: browser authentication, mixed collection editing, repeats, keyboard and drag ordering, cancelled drag recovery, bulk move/removal, independent fork/delete, search/filter, mobile layout and season/movie editing without JavaScript');
   } finally {
