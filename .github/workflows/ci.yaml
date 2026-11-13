@@ -1,17 +1,103 @@
 name: CI
-on: [push, pull_request]
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      release-version:
+        description: Nonempty when staging tested release images by digest.
+        type: string
+        default: ''
+      source-ref:
+        description: Exact source ref to test and build.
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
   foundation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
         with:
-          go-version: 1.25.x
+          ref: ${{ inputs.source-ref }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
           cache: true
       - run: make check test build
       - run: docker compose config --quiet
-      - run: docker build -t ordarr:0.5.0-dev .
-      - run: python3 scripts/smoke.py --compose
+      - run: .github/scripts/next-version.test.sh
+      - run: .github/scripts/publish-tested-images.test.sh
+  docker-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source-ref }}
+      - name: Normalize registry name
+        run: echo "IMAGE=${IMAGE,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v3
+        if: inputs.release-version != ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build once on the native architecture
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          load: ${{ inputs.release-version == '' }}
+          tags: ${{ inputs.release-version == '' && 'ordarr:ci' || '' }}
+          outputs: ${{ inputs.release-version != '' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || '' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ inputs.release-version || 'dev' }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=ordarr-linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=ordarr-linux-${{ matrix.arch }}
+      - name: Test persistence and authentication with this exact image
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          image=ordarr:ci
+          if [ -n "$RELEASE_VERSION" ]; then
+            image="$IMAGE@$DIGEST"
+            docker pull "$image"
+          fi
+          test "$(docker image inspect "$image" --format '{{.Architecture}}')" = "$EXPECTED_ARCH"
+          ORDARR_IMAGE="$image" python3 scripts/smoke.py --compose
+      - name: Record tested digest
+        if: inputs.release-version != ''
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v7
+        if: inputs.release-version != ''
+        with:
+          name: ordarr-digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1

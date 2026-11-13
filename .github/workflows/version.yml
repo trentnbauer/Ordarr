@@ -1,0 +1,68 @@
+name: Create Version and Docker Container
+# Adapted from trentnbauer/frames. Checks pass before creating a release tag.
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: version
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: next
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].number // empty')"
+          if [ -z "$pr" ]; then echo "Direct push: CI only, no release."; exit 0; fi
+          labels="$(gh pr view "$pr" --json labels --jq '[.labels[].name] | join(",")')"
+          version="$(git tag --list 'v*' | .github/scripts/next-version.sh "$labels")"
+          if [ -z "$version" ]; then exit 0; fi
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+  checks:
+    needs: plan
+    uses: ./.github/workflows/ci.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      release-version: ${{ needs.plan.outputs.version }}
+      source-ref: ${{ github.sha }}
+  tag:
+    needs: [plan, checks]
+    if: needs.plan.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git tag "v$RELEASE_VERSION" "$GITHUB_SHA"
+          git push origin "v$RELEASE_VERSION"
+          gh release create "v$RELEASE_VERSION" --verify-tag --title "v$RELEASE_VERSION" --generate-notes
+  publish:
+    needs: [plan, checks, tag]
+    uses: ./.github/workflows/publish-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: ${{ needs.plan.outputs.version }}

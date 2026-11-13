@@ -1,0 +1,27 @@
+name: Release label
+
+# Every pull request must say how much it changes the version, so the next version number can be
+# worked out when it merges: exactly one of  release: fix  /  release: minor  /  release: major  /  release: none.
+# Make the "Release label" check required in the branch protection rules to enforce it.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    name: Release label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          if version="$(printf 'v0.0.0\n' | .github/scripts/next-version.sh "$LABELS")"; then
+            echo "Release label found (labels: $LABELS)."
+          else
+            echo "::error::Add exactly one label: 'release: fix' (bug fix), 'release: minor' (new feature), 'release: major' (breaking change), or 'release: none' (docs, CI, no new version)."
+            exit 1
+          fi

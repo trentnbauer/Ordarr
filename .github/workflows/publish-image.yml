@@ -1,0 +1,58 @@
+name: Publish tested Docker images
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version of the images already built and tested in this workflow run.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Resolve version and registry name
+        id: image
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ordarr" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/v${{ steps.image.outputs.version }}
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: ordarr-digest-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ steps.image.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.image.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ steps.image.outputs.version }}
+          flavor: latest=auto
+      - name: Publish a manifest of the tested digests without rebuilding
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST_DIR: ${{ runner.temp }}/digests
+        run: .github/scripts/publish-tested-images.sh
