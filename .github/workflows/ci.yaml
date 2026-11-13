@@ -1,0 +1,17 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.x
+          cache: true
+      - run: make check test build
+      - run: docker compose config --quiet
+      - run: docker build -t ordarr:0.2.0-dev .
+      - run: python3 scripts/smoke.py --compose
