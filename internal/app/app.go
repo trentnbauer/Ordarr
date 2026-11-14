@@ -36,12 +36,13 @@ const sessionCookie = "ordarr_session"
 const csrfCookie = "ordarr_csrf"
 
 type Config struct {
+	Deployment       ComposeDeployment
 	Address, DataDir string
 	SecureCookies    bool
 }
 
 func LoadConfig() (Config, error) {
-	c := Config{Address: "127.0.0.1:8080", DataDir: "data"}
+	c := Config{Address: "127.0.0.1:8080", DataDir: "data", Deployment: loadComposeDeployment()}
 	if v := os.Getenv("ORDARR_ADDR"); v != "" {
 		c.Address = v
 	}
@@ -83,6 +84,8 @@ type attempt struct {
 	until time.Time
 }
 type page struct {
+	JellyfinConnections                                  []jellyfinView
+	JellyfinMatches                                      *jellyfinMatchView
 	Acquisition                                          *acquisitionView
 	Source                                               *sourceView
 	Destinations                                         []store.Destination
@@ -144,6 +147,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /logout", a.logout)
 	m.HandleFunc("GET /{$}", a.protected(a.listCollections))
 	m.HandleFunc("GET /settings", a.protected(a.settings))
+	m.HandleFunc("GET /settings/export.env", a.protected(a.exportEnvironment))
 	m.HandleFunc("GET /collections/new", a.protected(a.newCollection))
 	m.HandleFunc("POST /collections", a.protected(a.newCollection))
 	m.HandleFunc("GET /collections/{id}", a.protected(a.collectionDetail))
@@ -185,6 +189,13 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/acquisition/{id}/automation", a.protected(a.collectionAutomation))
 	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
 	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
+	m.HandleFunc("GET /settings/jellyfin", a.protected(a.jellyfinSettings))
+	m.HandleFunc("POST /settings/jellyfin", a.protected(a.connectJellyfin))
+	m.HandleFunc("POST /settings/jellyfin/{id}/check", a.protected(a.recheckJellyfin))
+	m.HandleFunc("POST /settings/jellyfin/{id}/delete", a.protected(a.deleteJellyfin))
+	m.HandleFunc("POST /settings/jellyfin/{id}/scan", a.protected(a.queueJellyfinScan))
+	m.HandleFunc("GET /collections/{id}/jellyfin/{connection}", a.protected(a.jellyfinMatches))
+	m.HandleFunc("POST /collections/{id}/jellyfin/{connection}", a.protected(a.jellyfinManualMatch))
 	return a.security(m)
 }
 func (a *App) security(next http.Handler) http.Handler {
@@ -210,7 +221,7 @@ func (a *App) security(next http.Handler) http.Handler {
 			if r.URL.Path == "/import" {
 				limit = 4 << 20
 			}
-			if strings.HasPrefix(r.URL.Path, "/collections") || strings.HasPrefix(r.URL.Path, "/settings/plex") {
+			if strings.HasPrefix(r.URL.Path, "/collections") || strings.HasPrefix(r.URL.Path, "/settings/plex") || strings.HasPrefix(r.URL.Path, "/settings/jellyfin") {
 				limit = 128 << 10
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)

@@ -154,6 +154,14 @@ func (a *App) collectionDetail(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, "sync history failed")
 		return
 	}
+	jellyfinConnections, e := a.store.JellyfinConnections(r.Context())
+	if e != nil {
+		a.fail(w, "Jellyfin connections failed")
+		return
+	}
+	for _, conn := range jellyfinConnections {
+		p.JellyfinConnections = append(p.JellyfinConnections, jellyfinPublic(conn))
+	}
 	p.Source, err = a.optionalSource(r.Context(), c.ID)
 	if err != nil {
 		a.fail(w, "subscription lookup failed")
