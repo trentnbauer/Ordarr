@@ -79,11 +79,12 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [x] Test request effects and recovery using mock APIs and optional live instances.
 
 ## Phase 8 — Jellyfin (post-MVP)
+- [x] Review the official user, library and playlist API contracts; document remaining publishing checks.
 - [ ] Validate Jellyfin playlist API, mixed-media order and permissions.
-- [ ] Implement connection, library discovery and matching.
+- [x] Implement user-scoped connection, library discovery, complete scans, exact-ID matching and manual resolution.
 - [ ] Implement ordered playlist publishing and reconciliation.
 - [ ] Test newly available media insertion and missing media handling.
-- [ ] Document differences from Plex and live verification status.
+- [x] Document discovery/matching differences from Plex and live verification status; extend after playlist publishing.
 
 ## Phase 9 — Further enhancements
 - [ ] Optional Emby/other media-server adapters.
@@ -93,6 +94,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 - [ ] Consider multi-user management after single-admin MVP.
 
 ## Additional integration and safety acceptance checks
+- [x] Export running Compose deployment settings from Settings and verify env-file import without exporting credentials.
 - [x] Publish only under the verified administrator Plex account (fixture-tested; live ownership unverified).
 - [x] Keep local Ordarr administrator authentication separate from Plex account connection authorisation.
 - [x] Support both Plex account sign-in and manual Plex server URL/token connection.
@@ -121,3 +123,9 @@ approvals, disabled-by-default automation with collection/server opt-ins, rollin
 limits, exclusions, durable attempt history and uncertain-write recovery. Tests use
 HTTP fixtures; live Sonarr/Radarr compatibility remains unverified. See the
 [acquisition wiki](https://github.com/trentnbauer/Ordarr/wiki/Acquisition).
+
+Phase 8 has read-only Jellyfin connectivity and matching. Indexed matches are not
+labelled playable. Ordered playlist publishing, playback verification and playlist
+recovery tests remain unfinished. See the
+[Jellyfin wiki](https://github.com/trentnbauer/Ordarr/wiki/Jellyfin) for contracts and
+explicit live-verification limits.

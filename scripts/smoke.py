@@ -119,6 +119,14 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
         status, _, body = request('/settings')
         expect(status, 200)
         assert 'smoke-admin' in body
+        export_status, export_headers, exported = request('/settings/export.env')
+        expect(export_status, 200)
+        assert 'ordarr.env' in export_headers['Content-Disposition']
+        assert "ORDARR_SECURE_COOKIES='false'" in exported
+        assert password not in exported
+        if args.compose:
+            assert f"ORDARR_PORT='{port}'" in exported
+            assert "ORDARR_BIND_IP='127.0.0.1'" in exported
         status, headers, _ = request('/collections', {'csrf': csrf(body), 'title': 'Persistent mixed order', 'description': 'Keep deliberate repeats'})
         expect(status, 303)
         collection_path = headers['Location']
@@ -170,7 +178,7 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
         if not args.compose:
             log.seek(0)
             assert log.read().count('Ordarr stopped gracefully') == 2
-        print('PASS: health, setup, private credential key persistence, authenticated settings, mixed collection and repeat persistence after replacement, logout, revoked-cookie rejection, login, graceful stop')
+        print('PASS: health, Compose environment export, setup, private credential key persistence, authenticated settings, mixed collection and repeat persistence after replacement, logout, revoked-cookie rejection, login, graceful stop')
     finally:
         if args.compose:
             command('down', '--volumes', '--remove-orphans')

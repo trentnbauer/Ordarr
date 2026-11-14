@@ -1,10 +1,13 @@
 services:
   ordarr:
-    image: ${ORDARR_IMAGE:-ordarr:0.7.0-dev}
+    image: ${ORDARR_IMAGE:-ordarr:0.8.0-dev}
     build: .
     ports:
       - "${ORDARR_BIND_IP:-127.0.0.1}:${ORDARR_PORT:-8080}:8080"
     environment:
+      ORDARR_BIND_IP: ${ORDARR_BIND_IP:-127.0.0.1}
+      ORDARR_PORT: ${ORDARR_PORT:-8080}
+      ORDARR_IMAGE: ${ORDARR_IMAGE:-ordarr:0.8.0-dev}
       ORDARR_ADDR: 0.0.0.0:8080
       ORDARR_DATA_DIR: /data
       ORDARR_SECURE_COOKIES: ${ORDARR_SECURE_COOKIES:-false}

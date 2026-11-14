@@ -5,3 +5,5 @@
 /* Reserve live-status space so starting a drag cannot move its drop targets. */
 #order-status{min-height:3.2em}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;padding:1rem;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+
+.identifier{overflow-wrap:anywhere}

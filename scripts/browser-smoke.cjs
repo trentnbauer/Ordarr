@@ -1,7 +1,7 @@
 // Optional browser check: install Playwright externally; no frontend build is needed.
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
-const { mkdtemp, rm } = require('node:fs/promises');
+const { mkdtemp, rm, readFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 const net = require('node:net');
@@ -14,11 +14,12 @@ const assert = require('node:assert/strict');
   await new Promise(r => listener.close(r));
   const origin = `http://127.0.0.1:${port}`;
   const server = spawn(resolve(__dirname, '../bin/ordarr'), [], {
-    env: { ...process.env, ORDARR_ADDR: `127.0.0.1:${port}`, ORDARR_DATA_DIR: temp, ORDARR_SECURE_COOKIES: 'false' },
+    env: { ...process.env, ORDARR_ADDR: `127.0.0.1:${port}`, ORDARR_DATA_DIR: temp, ORDARR_SECURE_COOKIES: 'false', ORDARR_BIND_IP:'127.0.0.1', ORDARR_PORT:String(port), ORDARR_IMAGE:'ordarr:browser-fixture', TZ:'Australia/Sydney' },
     stdio: 'ignore',
   });
   let browser;
   let acquisitionFixture;
+  let jellyfinFixture;
   try {
     let ready = false;
     for (let i = 0; i < 100; i++) {
@@ -38,6 +39,14 @@ const assert = require('node:assert/strict');
     await page.getByRole('heading', { name: 'Your watch orders' }).waitFor({ timeout: 5000 }).catch(async e => { console.log(await page.locator('body').innerText()); throw e; });
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await page.getByText('browser-admin', { exact: true }).waitFor();
+    const [envDownload]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:'Export Compose .env',exact:true}).click()]);
+    assert.equal(envDownload.suggestedFilename(),'ordarr.env');
+    const envContents=await readFile(await envDownload.path(),'utf8');
+    assert(envContents.includes("ORDARR_PORT='"+port+"'"));
+    assert(envContents.includes("ORDARR_BIND_IP='127.0.0.1'"));
+    assert(envContents.includes("ORDARR_IMAGE='ordarr:browser-fixture'"));
+    assert(envContents.includes("TZ='Australia/Sydney'"));
+    assert(!envContents.includes(temp),'export leaked the native data directory');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile layout overflows');
     await page.screenshot({ path: join(tmpdir(), 'ordarr-settings-mobile.png'), fullPage: true });
     await page.getByRole('button', { name: 'Sign out' }).click();
@@ -225,8 +234,57 @@ const assert = require('node:assert/strict');
     assert.equal(acquisitionPosts,1);
     await page.goto(origin+'/settings/acquisition');
     assert(!(await page.locator('body').innerText()).includes('browser-arr-secret'));
+    let jfReads=0, jfFailed=false;
+    const jfUser='11111111111111111111111111111111', jfLib='22222222222222222222222222222222', jfMovie='33333333333333333333333333333333';
+    jellyfinFixture=require('node:http').createServer((req,res)=>{
+      assert.equal(req.method,'GET','Jellyfin metadata flow performed a remote write');
+      assert(req.headers.authorization.includes('Token="browser-jf-token"'));
+      const path=new URL(req.url,'http://fixture').pathname;let body;
+      switch(path){
+        case '/System/Info/Public': body={Id:'server',ServerName:'Jellyfin fixture',ProductName:'Jellyfin',Version:'10.11'};break;
+        case '/Users/Me': body={Id:jfUser,Name:'Browser Jellyfin user',Policy:{IsDisabled:false,EnableMediaPlayback:true}};break;
+        case '/UserViews': body={Items:[{Id:jfLib,Name:'Movies',CollectionType:'movies'}],TotalRecordCount:1,StartIndex:0};break;
+        case '/Items': jfReads++;if(jfFailed){res.writeHead(503).end('browser-jf-token');return;}body={Items:[{Id:jfMovie,Name:'Confirmed repeat',Type:'Movie',ProviderIds:{Tmdb:'1'},Path:'/private/not-persisted'}],TotalRecordCount:1,StartIndex:0};break;
+        default:res.writeHead(404).end();return;
+      }
+      res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));
+    });
+    await new Promise(resolve=>jellyfinFixture.listen(0,'127.0.0.1',resolve));
+    await page.goto(origin+'/settings/jellyfin');
+    await page.getByLabel('Connection name',{exact:true}).fill('Browser Jellyfin');
+    await page.getByLabel('Server origin',{exact:true}).fill('http://127.0.0.1:'+jellyfinFixture.address().port);
+    await page.getByLabel('User access token',{exact:true}).fill('browser-jf-token');
+    await page.getByLabel('Allow unencrypted HTTP on this trusted connection',{exact:true}).check();
+    await page.getByRole('button',{name:'Validate and connect Jellyfin',exact:true}).click();
+    await page.getByRole('heading',{name:'Browser Jellyfin',exact:true}).waitFor();
+    assert((await page.locator('body').innerText()).includes('Browser Jellyfin user'));
+    await page.setViewportSize({width:390,height:844});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Jellyfin settings overflow on mobile');
+    await page.getByRole('button',{name:'Scan Jellyfin catalogue',exact:true}).click();
+    await page.goto(importedURL);
+    await page.getByRole('link',{name:'Match with Jellyfin: Browser Jellyfin',exact:true}).click();
+    const jfMatchURL=page.url();
+    for(let i=0;i<50;i++){if(await page.locator('.badge').count())break;await page.waitForTimeout(100);await page.reload();}
+    assert.equal(await page.locator('.badge').filter({hasText:'matched'}).count(),2);
+    assert((await page.locator('body').innerText()).includes('Playback has not been verified'));
+    const mapping=page.locator('article').first();await mapping.locator('summary').click();
+    await mapping.getByLabel('Exact Jellyfin item ID (blank restores provider matching)',{exact:true}).fill(jfMovie);
+    await mapping.getByRole('button',{name:'Save Jellyfin mapping',exact:true}).click();
+    assert.equal(await page.locator('.badge').filter({hasText:'matched'}).count(),2);
+    jfFailed=true;await page.getByRole('button',{name:'Scan Jellyfin catalogue',exact:true}).click();
+    for(let i=0;i<50;i++){if((await page.locator('body').innerText()).includes('last complete catalogue was retained'))break;await page.waitForTimeout(100);await page.reload();}
+    assert((await page.locator('body').innerText()).includes('last complete catalogue was retained'),'Jellyfin failed scan did not finish');
+    assert(jfReads>=2);
+    await page.goto(jfMatchURL);assert.equal(await page.locator('.badge').filter({hasText:'matched'}).count(),2);
+    assert(!(await page.locator('body').innerText()).includes('browser-jf-token'));
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Jellyfin matches overflow on mobile');
+    await page.screenshot({path:join(tmpdir(),'ordarr-jellyfin-matches-mobile.png'),fullPage:true});
+    await page.goto(origin+'/settings/jellyfin');await page.getByText('Remove local connection',{exact:true}).click();
+    await page.getByLabel('Connection ID',{exact:true}).fill(new URL(jfMatchURL).pathname.split('/').pop());
+    const jfBefore=jfReads;await page.getByRole('button',{name:'Remove Jellyfin connection locally',exact:true}).click();
+    assert.equal(jfReads,jfBefore);assert.equal(await page.getByRole('heading',{name:'Browser Jellyfin',exact:true}).count(),0);
     assert.deepEqual(errors, []);
-    console.log('PASS: browser authentication, mixed collection editing, repeats, keyboard and drag ordering, cancelled drag recovery, bulk move/removal, independent fork/delete, search/filter, mobile layout season/movie editing without JavaScript, portable upload/export and approved Radarr acquisition');
+    console.log('PASS: browser authentication, Compose environment download, mixed collection editing, repeats, keyboard and drag ordering, cancelled drag recovery, bulk move/removal, independent fork/delete, search/filter, mobile layout season/movie editing without JavaScript, portable upload/export approved Radarr acquisition, Jellyfin user discovery, complete scan/matching, manual mapping, failed-scan retention and local removal');
   } finally {
     if (browser) await browser.close();
     if (server.exitCode === null) {
@@ -234,6 +292,7 @@ const assert = require('node:assert/strict');
       server.kill('SIGTERM');
       await stopped;
     }
+    if(jellyfinFixture) await new Promise(resolve=>jellyfinFixture.close(resolve));
     if(acquisitionFixture) await new Promise(resolve=>acquisitionFixture.close(resolve));
     await rm(temp, { recursive: true, force: true });
   }

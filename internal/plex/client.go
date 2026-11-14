@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const clientVersion = "0.7.0-dev"
+const clientVersion = "0.8.0-dev"
 
 var ErrAuth = errors.New("Plex rejected the token or denied library access. Check or replace the token.")
 var ErrUnavailable = errors.New("Plex could not be reached securely. Check the server address, network access and TLS certificate.")
