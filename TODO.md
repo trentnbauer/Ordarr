@@ -88,6 +88,7 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 
 ## Phase 9 — Further enhancements
 - [ ] Optional Emby/other media-server adapters.
+- [ ] AI integration for generating collection files.
 - [ ] Community collection catalogue and discovery.
 - [ ] Per-user watch progress and next-unwatched entry.
 - [ ] Advanced subscription overrides and conflict handling.
