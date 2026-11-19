@@ -21,14 +21,15 @@ type plexView struct {
 	Revision                                                int
 	AllowHTTP                                               bool
 	CheckedAt, AttemptedAt, LastError                       string
+	Checked                                                 int64
 	Libraries                                               []plex.Library
 }
 
 func plexPublic(c store.PlexConnection) plexView {
-	return plexView{AccountLinked: c.AccountID == 1, ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, MachineID: c.MachineID, ServerName: c.ServerName, ServerVersion: c.ServerVersion, Revision: c.Revision, AllowHTTP: c.AllowHTTP, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339), AttemptedAt: time.Unix(c.AttemptedAt, 0).UTC().Format(time.RFC3339), LastError: c.LastError, Libraries: c.Libraries}
+	return plexView{AccountLinked: c.AccountID == 1, ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, MachineID: c.MachineID, ServerName: c.ServerName, ServerVersion: c.ServerVersion, Revision: c.Revision, AllowHTTP: c.AllowHTTP, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339), AttemptedAt: time.Unix(c.AttemptedAt, 0).UTC().Format(time.RFC3339), LastError: c.LastError, Libraries: c.Libraries, Checked: c.CheckedAt}
 }
 func (a *App) plexPage(ctx context.Context) (page, error) {
-	p := page{Title: "Plex connections", Mode: "plex"}
+	p := page{Title: "Plex", Mode: "plex"}
 	ids, err := a.store.PlexConnectionIDs(ctx)
 	if err != nil {
 		return p, err
@@ -44,6 +45,17 @@ func (a *App) plexPage(ctx context.Context) (page, error) {
 		p.PlexConnections = append(p.PlexConnections, plexPublic(c))
 	}
 	p.Account, p.AccountServers, err = a.accountProjection(ctx)
+	if err != nil {
+		return p, err
+	}
+	for i := range p.AccountServers {
+		for _, c := range p.PlexConnections {
+			if c.AccountLinked && c.MachineID == p.AccountServers[i].MachineID {
+				p.AccountServers[i].Connected = c.Name
+			}
+		}
+	}
+	p.PlexPage, err = a.plexServers(ctx, p.PlexConnections)
 	return p, err
 }
 func (a *App) renderPlex(w http.ResponseWriter, r *http.Request, status int, message, notice string) {

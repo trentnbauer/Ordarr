@@ -171,6 +171,19 @@ func (s *Store) Collection(ctx context.Context, id string) (Collection, error) {
 	return c, tx.Commit()
 }
 func (s *Store) ListCollections(ctx context.Context, search, kind string, offset int) ([]CollectionSummary, error) {
+	return s.ListCollectionsSorted(ctx, search, kind, "recent", offset)
+}
+
+// ListCollectionsSorted lists collections newest first ("recent") or by title ("title").
+func (s *Store) ListCollectionsSorted(ctx context.Context, search, kind, sort string, offset int) ([]CollectionSummary, error) {
+	order := "c.created_at DESC,c.id"
+	switch sort {
+	case "", "recent":
+	case "title":
+		order = "lower(c.title),c.id"
+	default:
+		return nil, invalid("Invalid sort.")
+	}
 	if offset < 0 || offset > 100000 || !validText(search, 200) {
 		return nil, invalid("Invalid search or page.")
 	}
@@ -180,7 +193,7 @@ func (s *Store) ListCollections(ctx context.Context, search, kind string, offset
 	rows, err := s.DB.QueryContext(ctx, `SELECT c.id,c.title,c.description,c.forked_from,c.revision,c.created_at,c.updated_at,(SELECT count(*) FROM entries e WHERE e.collection_id=c.id) FROM collections c
  WHERE instr(lower(c.title || ' ' || c.description),lower(?))>0
  AND (?='' OR (?='fork' AND c.forked_from<>'') OR EXISTS(SELECT 1 FROM entries e WHERE e.collection_id=c.id AND e.kind=?))
- ORDER BY c.created_at DESC,c.id LIMIT ? OFFSET ?`, search, kind, kind, kind, PageSize+1, offset)
+ ORDER BY `+order+` LIMIT ? OFFSET ?`, search, kind, kind, kind, PageSize+1, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +296,28 @@ func (s *Store) ChangeCollection(ctx context.Context, id string, revision int, c
 		ordered := append([]Entry{}, rest[:index]...)
 		ordered = append(ordered, moving...)
 		c.Entries = append(ordered, rest[index:]...)
+	case "repeat":
+		if len(selected) == 0 {
+			return invalid("Choose entries to repeat.")
+		}
+		if len(c.Entries)+len(selected) > MaxEntries {
+			return invalid("A collection can contain at most 1,000 entries.")
+		}
+		// Deliberate repeats are inserted as one block directly after the last
+		// selected entry, keeping the selection's relative order.
+		var copies []Entry
+		last := 0
+		for i, e := range c.Entries {
+			if selected[e.ID] {
+				repeat := e
+				repeat.ID = newID()
+				copies = append(copies, repeat)
+				last = i
+			}
+		}
+		ordered := append([]Entry{}, c.Entries[:last+1]...)
+		ordered = append(ordered, copies...)
+		c.Entries = append(ordered, c.Entries[last+1:]...)
 	case "reorder":
 		if len(selected) != len(c.Entries) {
 			return invalid("Reordering must contain every entry exactly once.")

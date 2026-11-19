@@ -15,13 +15,14 @@ import (
 
 type jellyfinView struct {
 	ID, Name, BaseURL string
+	AllowHTTP         bool
 	Revision          int
 	Snapshot          jellyfin.Snapshot
 	CheckedAt         string
 }
 
 func jellyfinPublic(c store.JellyfinConnection) jellyfinView {
-	return jellyfinView{ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339)}
+	return jellyfinView{ID: c.ID, Name: c.Name, BaseURL: c.BaseURL, AllowHTTP: c.AllowHTTP, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: time.Unix(c.CheckedAt, 0).UTC().Format(time.RFC3339)}
 }
 
 type jellyfinMatchView struct {
@@ -37,18 +38,6 @@ type jellyfinMatchedEntry struct {
 	Result jellyfin.Match
 }
 
-func (a *App) jellyfinSettings(w http.ResponseWriter, r *http.Request) {
-	connections, err := a.store.JellyfinConnections(r.Context())
-	if err != nil {
-		a.fail(w, "Jellyfin settings failed")
-		return
-	}
-	p := page{Title: "Jellyfin connections", Mode: "jellyfin"}
-	for _, c := range connections {
-		p.JellyfinConnections = append(p.JellyfinConnections, jellyfinPublic(c))
-	}
-	a.render(w, r, 200, p)
-}
 func (a *App) jellyfinError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, jellyfin.ErrAPI), errors.Is(err, jellyfin.ErrAuth), errors.Is(err, jellyfin.ErrChanged):
@@ -82,7 +71,7 @@ func (a *App) connectJellyfin(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/jellyfin", 303)
+	http.Redirect(w, r, "/settings/jellyfin?id="+id, 303)
 }
 func (a *App) recheckJellyfin(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.JellyfinConnection(r.Context(), r.PathValue("id"))
@@ -112,15 +101,20 @@ func (a *App) recheckJellyfin(w http.ResponseWriter, r *http.Request) {
 		a.jellyfinError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/jellyfin", 303)
+	http.Redirect(w, r, "/settings/jellyfin?id="+c.ID, 303)
 }
 func (a *App) deleteJellyfin(w http.ResponseWriter, r *http.Request) {
 	revision, _ := strconv.Atoi(r.PostForm.Get("revision"))
-	if r.PostForm.Get("confirm") != r.PathValue("id") {
-		http.Error(w, "Type the connection ID to confirm local removal", 400)
+	c, err := a.store.JellyfinConnection(r.Context(), r.PathValue("id"))
+	if err != nil {
+		a.collectionError(w, err)
 		return
 	}
-	if err := a.store.DeleteJellyfin(r.Context(), r.PathValue("id"), revision); err != nil {
+	if confirm := r.PostForm.Get("confirm"); confirm == "" || confirm != c.ID && confirm != c.Name {
+		http.Error(w, "Type the connection name to confirm local removal", 400)
+		return
+	}
+	if err = a.store.DeleteJellyfin(r.Context(), c.ID, revision); err != nil {
 		a.collectionError(w, err)
 		return
 	}

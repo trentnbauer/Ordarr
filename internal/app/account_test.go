@@ -97,7 +97,7 @@ func newAccountFixture(t *testing.T) *accountFixture {
 			}
 			json.NewEncoder(w).Encode(map[string]any{"id": f.userID.Load(), "username": "plex-user", "friendlyName": "Plex User"})
 		case "/api/v2/resources":
-			json.NewEncoder(w).Encode([]any{map[string]any{"clientIdentifier": "resource-machine", "name": "Account server", "provides": "server", "owned": false, "accessToken": "resource-scoped-token", "connections": []any{map[string]any{"uri": f.pms.URL, "local": true}}}})
+			json.NewEncoder(w).Encode([]any{map[string]any{"clientIdentifier": "resource-machine", "name": "Account server", "provides": "server", "owned": true, "accessToken": "resource-scoped-token", "connections": []any{map[string]any{"uri": f.pms.URL, "local": true}}}, map[string]any{"clientIdentifier": "shared-machine", "name": "Friend's shared server", "provides": "server", "owned": false, "accessToken": "shared-scoped-token", "connections": []any{map[string]any{"uri": f.pms.URL, "local": true}}}})
 		case "/api/v2/auth/nonce":
 			io.WriteString(w, `{"nonce":"nonce-fixture"}`)
 		case "/api/v2/auth/token":
@@ -155,8 +155,23 @@ func TestAccountSignInRefreshServerScopeAndDisconnect(t *testing.T) {
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "plex-user") || !strings.Contains(w.Body.String(), "Connect Account server") {
 		t.Fatal("verified resources missing")
 	}
-	// An arbitrary resource URI must never receive an account or server token.
+	// Issue #6: servers merely shared with this account are neither listed nor connectable.
+	if strings.Contains(w.Body.String(), "shared server") || strings.Contains(w.Body.String(), "shared-machine") {
+		t.Fatal("shared server listed")
+	}
+	if account, err = a.store.PlexAccount(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	before := f.pmsCalls.Load()
+	post("/settings/plex/account/connect", url.Values{"account_revision": {strconv.Itoa(account.Revision)}, "resource_id": {"shared-machine"}, "uri": {f.pms.URL}, "allow_http": {"yes"}}, 400)
+	if f.pmsCalls.Load() != before {
+		t.Fatal("shared server contacted")
+	}
+	// An arbitrary resource URI must never receive an account or server token.
+	if account, err = a.store.PlexAccount(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	before = f.pmsCalls.Load()
 	post("/settings/plex/account/connect", url.Values{"account_revision": {strconv.Itoa(account.Revision)}, "resource_id": {"resource-machine"}, "uri": {"http://127.0.0.1:9999"}, "allow_http": {"yes"}}, 400)
 	if f.pmsCalls.Load() != before {
 		t.Fatal("unexpected PMS request")

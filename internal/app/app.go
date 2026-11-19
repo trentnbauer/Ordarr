@@ -23,6 +23,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/trentnbauer/Ordarr/internal/community"
 	"github.com/trentnbauer/Ordarr/internal/plex"
 	"github.com/trentnbauer/Ordarr/internal/secret"
 	"github.com/trentnbauer/Ordarr/internal/store"
@@ -39,10 +40,27 @@ type Config struct {
 	Deployment       ComposeDeployment
 	Address, DataDir string
 	SecureCookies    bool
+	// CommunityRepository is a public GitHub owner/repo of collection files;
+	// empty disables the community catalogue.
+	CommunityRepository, CommunityBranch string
 }
 
 func LoadConfig() (Config, error) {
-	c := Config{Address: "127.0.0.1:8080", DataDir: "data", Deployment: loadComposeDeployment()}
+	c := Config{Address: "127.0.0.1:8080", DataDir: "data", Deployment: loadComposeDeployment(), CommunityRepository: community.DefaultRepository, CommunityBranch: "main"}
+	if v, ok := os.LookupEnv("ORDARR_COMMUNITY_REPO"); ok {
+		c.CommunityRepository = v
+		if v == "off" || v == "" {
+			c.CommunityRepository = ""
+		} else if !community.ValidRepository(v) {
+			return c, errors.New("ORDARR_COMMUNITY_REPO must be owner/repository or off")
+		}
+	}
+	if v := os.Getenv("ORDARR_COMMUNITY_BRANCH"); v != "" {
+		if !community.ValidBranch(v) {
+			return c, errors.New("ORDARR_COMMUNITY_BRANCH is not a valid branch name")
+		}
+		c.CommunityBranch = v
+	}
 	if v := os.Getenv("ORDARR_ADDR"); v != "" {
 		c.Address = v
 	}
@@ -78,6 +96,8 @@ type App struct {
 	dummy       []byte
 	mu          sync.Mutex
 	attempts    map[string]attempt
+	avail       availabilityCache
+	community   *community.Catalogue
 }
 type attempt struct {
 	count int
@@ -104,10 +124,20 @@ type page struct {
 	Account                                              *accountView
 	AuthAttempt                                          *authView
 	AccountServers                                       []accountServerView
+	Nav                                                  *navView
+	List                                                 *listView
+	Detail                                               *collectionView
+	Add                                                  *addView
+	MissingMedia                                         *missingView
+	Activity                                             *activityView
+	Preferences                                          *settingsView
+	JellyfinPage                                         *jellyfinPageView
+	ArrPage                                              *arrPageView
+	PlexPage                                             *plexPageView
 }
 
 func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
-	t, err := template.New("pages").Funcs(template.FuncMap{"inc": func(n int) int { return n + 1 }, "dec": func(n int) int { return n - 1 }}).ParseFS(assets, "templates/*.html")
+	t, err := template.New("pages").Funcs(templateFuncs).ParseFS(assets, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +153,11 @@ func New(s *store.Store, c Config, l *slog.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{wake: make(chan struct{}, 1), workersDone: make(chan struct{}), accounts: plex.NewAccountClient(nil), plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}}, nil
+	var catalogue *community.Catalogue
+	if c.CommunityRepository != "" {
+		catalogue = community.New(c.CommunityRepository, c.CommunityBranch)
+	}
+	return &App{wake: make(chan struct{}, 1), workersDone: make(chan struct{}), accounts: plex.NewAccountClient(nil), plex: plex.New(), vault: vault, store: s, config: c, logger: l, templates: t, dummy: dummy, attempts: map[string]attempt{}, community: catalogue}, nil
 }
 func randomToken() string {
 	var b [32]byte
@@ -190,6 +224,17 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
 	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
 	m.HandleFunc("GET /settings/jellyfin", a.protected(a.jellyfinSettings))
+	m.HandleFunc("POST /settings/jellyfin/{id}/edit", a.protected(a.editJellyfin))
+	m.HandleFunc("GET /add", a.protected(a.addPage))
+	m.HandleFunc("POST /add", a.protected(a.addCollection))
+	m.HandleFunc("GET /missing", a.protected(a.missingPage))
+	m.HandleFunc("POST /missing/request", a.protected(a.requestMissing))
+	m.HandleFunc("POST /settings/password", a.protected(a.changePassword))
+	m.HandleFunc("POST /settings/sessions/revoke", a.protected(a.signOutEverywhere))
+	m.HandleFunc("POST /settings/defaults", a.protected(a.saveDefaults))
+	m.HandleFunc("POST /settings/acquisition/{id}/edit", a.protected(a.editArr))
+	m.HandleFunc("POST /settings/acquisition/{id}/approve-all", a.protected(a.approveAll))
+	m.HandleFunc("POST /requests/{id}/decline", a.protected(a.declineRequest))
 	m.HandleFunc("POST /settings/jellyfin", a.protected(a.connectJellyfin))
 	m.HandleFunc("POST /settings/jellyfin/{id}/check", a.protected(a.recheckJellyfin))
 	m.HandleFunc("POST /settings/jellyfin/{id}/delete", a.protected(a.deleteJellyfin))
@@ -204,7 +249,7 @@ func (a *App) security(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "same-origin")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; script-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; script-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 		if r.Method == "POST" {
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
@@ -218,7 +263,7 @@ func (a *App) security(next http.Handler) http.Handler {
 				}
 			}
 			limit := int64(8192)
-			if r.URL.Path == "/import" {
+			if r.URL.Path == "/import" || r.URL.Path == "/add" {
 				limit = 4 << 20
 			}
 			if strings.HasPrefix(r.URL.Path, "/collections") || strings.HasPrefix(r.URL.Path, "/settings/plex") || strings.HasPrefix(r.URL.Path, "/settings/jellyfin") {
@@ -226,7 +271,7 @@ func (a *App) security(next http.Handler) http.Handler {
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			var formErr error
-			if r.URL.Path == "/import" && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+			if (r.URL.Path == "/import" || r.URL.Path == "/add") && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 				formErr = r.ParseMultipartForm(2 << 20)
 				if r.MultipartForm != nil {
 					defer r.MultipartForm.RemoveAll()
@@ -257,8 +302,15 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, p page)
 		p.CSRF = randomToken()
 		a.cookie(w, csrfCookie, p.CSRF, 86400)
 	}
+	if p.Mode != "setup" && p.Mode != "login" && p.Nav == nil {
+		if err = a.withNav(r.Context(), &p, section(p.Mode)); err != nil {
+			a.fail(w, "navigation state failed")
+			return
+		}
+	}
 	var body bytes.Buffer
 	if err = a.templates.ExecuteTemplate(&body, "page.html", p); err != nil {
+		a.logger.Error("template rendering failed", "error", err)
 		a.fail(w, "template rendering failed")
 		return
 	}
@@ -428,12 +480,4 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	a.cookie(w, sessionCookie, "", -1)
 	http.Redirect(w, r, "/login", 303)
-}
-func (a *App) settings(w http.ResponseWriter, r *http.Request) {
-	name, _, err := a.store.Admin(r.Context())
-	if err != nil {
-		a.fail(w, "administrator lookup failed")
-		return
-	}
-	a.render(w, r, 200, page{Title: "Settings", Mode: "settings", Username: name, Address: a.config.Address, DataDir: a.config.DataDir, Secure: a.config.SecureCookies})
 }

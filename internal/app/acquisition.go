@@ -25,72 +25,6 @@ func (a *App) arrAccess(c store.ArrConnection) (arr.Connection, error) {
 	key, err := a.vault.Open(c.KeyCipher, "arr:"+c.ID+":key")
 	return arr.Connection{Kind: c.Kind, URL: c.BaseURL, Key: key}, err
 }
-func (a *App) acquisitionPage(w http.ResponseWriter, r *http.Request) {
-	connections, err := a.store.ArrConnections(r.Context())
-	if err != nil {
-		a.fail(w, "acquisition settings failed")
-		return
-	}
-	requests, err := a.store.Acquisitions(r.Context())
-	if err != nil {
-		a.fail(w, "request history failed")
-		return
-	}
-	view := &acquisitionView{Connections: connections, Requests: requests, Bindings: map[string]string{}}
-	for _, c := range connections {
-		for _, m := range c.Snapshot.Media {
-			view.Statuses = append(view.Statuses, acquisitionStatus{Connection: c.Name, Title: m.Title, Status: arr.Status(c.Snapshot, m)})
-			if len(view.Statuses) >= 500 {
-				break
-			}
-		}
-	}
-	if id := r.URL.Query().Get("collection"); id != "" {
-		view.Collection, err = a.store.Collection(r.Context(), id)
-		if err != nil {
-			a.collectionError(w, err)
-			return
-		}
-		rows, e := a.store.DB.QueryContext(r.Context(), "SELECT connection_id,plex_connection_id FROM arr_automation WHERE collection_id=?", id)
-		if e != nil {
-			a.fail(w, "automation lookup failed")
-			return
-		}
-		for rows.Next() {
-			var connID, plexID string
-			if e = rows.Scan(&connID, &plexID); e != nil {
-				rows.Close()
-				a.fail(w, "automation lookup failed")
-				return
-			}
-			view.Bindings[connID] = plexID
-		}
-		e = rows.Err()
-		rows.Close()
-		if e != nil {
-			a.fail(w, "automation lookup failed")
-			return
-		}
-		ids, e := a.store.PlexConnectionIDs(r.Context())
-		if e != nil {
-			a.fail(w, "connection lookup failed")
-			return
-		}
-		for _, id := range ids {
-			c, e := a.store.PlexConnection(r.Context(), id)
-			if e != nil {
-				a.fail(w, "connection lookup failed")
-				return
-			}
-			view.PlexConnections = append(view.PlexConnections, plexPublic(c))
-		}
-	}
-	// Never pass encrypted credentials to templates even though no template displays them.
-	for i := range view.Connections {
-		view.Connections[i].KeyCipher = nil
-	}
-	a.render(w, r, 200, page{Title: "Sonarr / Radarr", Mode: "acquisition", Acquisition: view})
-}
 func (a *App) connectArr(w http.ResponseWriter, r *http.Request) {
 	base, err := plex.NormalizeURL(r.PostForm.Get("url"), r.PostForm.Get("allow_http") == "yes")
 	if err != nil {
@@ -111,7 +45,7 @@ func (a *App) connectArr(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition", 303)
+	http.Redirect(w, r, "/settings/acquisition?id="+id, 303)
 }
 func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))
@@ -138,7 +72,16 @@ func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, _ := strconv.Atoi(r.PostForm.Get("limit"))
-	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, r.PostForm.Get("automatic") == "yes", r.PostForm.Get("approval") == "yes", limit, r.PostForm.Get("exclusions")); err != nil {
+	automatic, approval := r.PostForm.Get("automatic") == "yes", r.PostForm.Get("approval") == "yes"
+	switch r.PostForm.Get("mode") {
+	case "off":
+		automatic, approval = false, true
+	case "ask":
+		automatic, approval = true, true
+	case "auto":
+		automatic, approval = true, false
+	}
+	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, automatic, approval, limit, r.PostForm.Get("exclusions")); err != nil {
 		a.collectionError(w, err)
 		return
 	}
@@ -147,7 +90,7 @@ func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/settings/acquisition", 303)
+	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 func (a *App) arrRefresh(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.store.ArrConnection(r.Context(), r.PathValue("id")); err != nil {
@@ -223,7 +166,7 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition", 303)
+	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 func (a *App) approveRequest(w http.ResponseWriter, r *http.Request) {
 	request, err := a.store.Acquisition(r.Context(), r.PathValue("id"))
@@ -254,7 +197,7 @@ func (a *App) approveRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/jobs", 303)
+	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 func (a *App) executeAcquisition(ctx context.Context, id string) (ret error) {
 	r, err := a.store.Acquisition(ctx, id)
@@ -320,7 +263,7 @@ func (a *App) collectionAutomation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/settings/acquisition?collection="+r.PostForm.Get("collection_id"), 303)
+	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 func (a *App) scheduleAcquisition(ctx context.Context) {
 	connections, err := a.store.ArrConnections(ctx)
@@ -426,8 +369,13 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 }
 func (a *App) deleteArr(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if r.PostForm.Get("confirm") != id {
-		http.Error(w, "Type the connection ID to confirm local removal", 400)
+	c, err := a.store.ArrConnection(r.Context(), id)
+	if err != nil {
+		a.collectionError(w, err)
+		return
+	}
+	if confirm := r.PostForm.Get("confirm"); confirm == "" || confirm != id && confirm != c.Name {
+		http.Error(w, "Type the instance name to confirm local removal", 400)
 		return
 	}
 	if _, err := a.store.DB.ExecContext(r.Context(), "DELETE FROM arr_connections WHERE id=?", id); err != nil {

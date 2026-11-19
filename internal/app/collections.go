@@ -54,56 +54,45 @@ func (a *App) collectionError(w http.ResponseWriter, err error) {
 	}
 }
 func (a *App) listCollections(w http.ResponseWriter, r *http.Request) {
-	offset := 0
-	if raw := r.URL.Query().Get("offset"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 0 || n > 100000 {
-			http.Error(w, "Invalid page", 400)
-			return
-		}
-		offset = n
-	}
-	q := r.URL.Query().Get("q")
-	filter := r.URL.Query().Get("filter")
-	result, err := a.store.ListCollections(r.Context(), q, filter, offset)
+	ctx := r.Context()
+	o, err := a.loadOverview(ctx)
 	if err != nil {
+		a.fail(w, "overview failed")
+		return
+	}
+	values, err := a.availabilityAll(ctx, o)
+	if err != nil {
+		a.fail(w, "availability failed")
+		return
+	}
+	p := page{Title: "Your watch orders", Mode: "dashboard", PlexConnections: o.Plex}
+	if p.Nav, err = a.navFor(ctx, "collections", o, values); err != nil {
+		a.fail(w, "navigation failed")
+		return
+	}
+	if p.List, err = a.collectionList(ctx, r, o, values, ""); err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	p := page{Title: "Your watch orders", Mode: "dashboard", Collections: result, Query: q, Filter: filter, Prev: "", Next: ""}
-	link := func(n int) string {
-		v := url.Values{"q": {q}, "filter": {filter}, "offset": {strconv.Itoa(n)}}
-		return "/?" + v.Encode()
-	}
-	if offset > 0 {
-		previous := max(0, offset-store.PageSize)
-		p.Prev = link(previous)
-	}
-	if len(result) > store.PageSize {
-		p.Collections = result[:store.PageSize]
-		p.Next = link(offset + store.PageSize)
-	}
+	p.Query, p.Filter, p.Prev, p.Next = p.List.Query, p.List.Filter, p.List.Prev, p.List.Next
 	a.render(w, r, 200, p)
 }
 func (a *App) newCollection(w http.ResponseWriter, r *http.Request) {
-	p := page{Title: "Create a watch order", Mode: "new"}
 	if r.Method == "GET" {
-		a.render(w, r, 200, p)
+		http.Redirect(w, r, "/add?source=empty", 303)
 		return
 	}
 	title, description := r.PostForm.Get("title"), r.PostForm.Get("description")
 	id, err := a.store.CreateCollection(r.Context(), title, description)
 	if errors.Is(err, store.ErrInvalid) {
-		p.Error = err.Error()
-		p.Collection = store.Collection{Title: title, Description: description}
-		a.render(w, r, 400, p)
+		a.renderAdd(w, r, 400, "empty", err.Error(), func(v *addView) { v.Title, v.Description = title, description })
 		return
 	}
 	if err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/collections/"+id, 303)
+	http.Redirect(w, r, "/collections/"+id+"?add=1", 303)
 }
 func (a *App) collectionDetail(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.Collection(r.Context(), r.PathValue("id"))
@@ -111,16 +100,18 @@ func (a *App) collectionDetail(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	p := page{Title: c.Title, Mode: "collection", Collection: c, Input: defaultEntryInput()}
+	tab := r.URL.Query().Get("tab")
+	var entryID string
+	var input entryInput
 	if id := r.PathValue("entry"); id != "" {
 		found := false
 		for _, e := range c.Entries {
 			if e.ID == id {
-				p.EntryID = id
-				p.Input = entryInput{Kind: e.Kind, Title: e.Title, Provider: e.Provider, ExternalID: e.ExternalID, Season: strconv.Itoa(e.Season), Start: strconv.Itoa(e.Episode), End: strconv.Itoa(e.Episode)}
+				entryID = id
+				input = entryInput{Kind: e.Kind, Title: e.Title, Provider: e.Provider, ExternalID: e.ExternalID, Season: strconv.Itoa(e.Season), Start: strconv.Itoa(e.Episode), End: strconv.Itoa(e.Episode)}
 				if e.Kind == "movie" {
-					p.Input.Start = "1"
-					p.Input.End = "1"
+					input.Start = "1"
+					input.End = "1"
 				}
 				found = true
 				break
@@ -130,44 +121,13 @@ func (a *App) collectionDetail(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
+		tab = "order"
 	}
-	ids, err := a.store.PlexConnectionIDs(r.Context())
-	if err != nil {
-		a.fail(w, "connection list failed")
-		return
-	}
-	for _, id := range ids {
-		conn, err := a.store.PlexConnection(r.Context(), id)
-		if err != nil {
-			a.fail(w, "connection lookup failed")
-			return
+	a.renderCollection(w, r, 200, c, tab, "", func(p *page) {
+		if entryID != "" {
+			p.EntryID, p.Input = entryID, input
 		}
-		p.PlexConnections = append(p.PlexConnections, plexPublic(conn))
-	}
-	p.Destinations, err = a.store.Destinations(r.Context(), c.ID)
-	if err != nil {
-		a.fail(w, "destinations failed")
-		return
-	}
-	p.SyncRuns, err = a.store.SyncRuns(r.Context(), c.ID)
-	if err != nil {
-		a.fail(w, "sync history failed")
-		return
-	}
-	jellyfinConnections, e := a.store.JellyfinConnections(r.Context())
-	if e != nil {
-		a.fail(w, "Jellyfin connections failed")
-		return
-	}
-	for _, conn := range jellyfinConnections {
-		p.JellyfinConnections = append(p.JellyfinConnections, jellyfinPublic(conn))
-	}
-	p.Source, err = a.optionalSource(r.Context(), c.ID)
-	if err != nil {
-		a.fail(w, "subscription lookup failed")
-		return
-	}
-	a.render(w, r, 200, p)
+	})
 }
 func (a *App) changeCollection(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -219,6 +179,10 @@ func (a *App) changeCollection(w http.ResponseWriter, r *http.Request) {
 		}
 	case "reorder":
 		change.IDs = strings.Fields(r.PostForm.Get("order"))
+	case "repeat":
+		if len(change.IDs) == 0 {
+			err = errors.New("Choose entries to repeat.")
+		}
 	}
 	if err != nil {
 		err = fmt.Errorf("%w: %s", store.ErrInvalid, err)
@@ -241,20 +205,29 @@ func (a *App) changeCollection(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, store.ErrConflict) {
 				status = 409
 			}
-			p := page{Title: c.Title, Mode: "collection", Collection: c, Error: err.Error(), Input: defaultEntryInput()}
-			if action == "add" || action == "edit" {
-				p.Input = input
-				if action == "edit" && len(change.IDs) == 1 {
-					p.EntryID = change.IDs[0]
-				}
+			tab := "order"
+			if action == "metadata" {
+				tab = "settings"
 			}
-			a.render(w, r, status, p)
+			a.renderCollection(w, r, status, c, tab, "", func(p *page) {
+				p.Error = err.Error()
+				if action == "add" || action == "edit" {
+					p.Input = input
+					p.Detail.Adding = action == "add"
+					if action == "edit" && len(change.IDs) == 1 {
+						p.EntryID = change.IDs[0]
+					}
+				}
+			})
 			return
 		}
 		a.collectionError(w, err)
 		return
 	}
 	location := "/collections/" + id
+	if action == "metadata" {
+		location += "?tab=settings"
+	}
 	if (action == "move" || action == "edit") && len(change.IDs) == 1 {
 		location += "#entry-" + change.IDs[0]
 	}
