@@ -114,7 +114,11 @@ func (c *Client) request(ctx context.Context, conn Connection, method, path stri
 		}
 		body = bytes.NewReader(data)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, conn.URL+"/api/v3/"+path, body)
+	origin := strings.TrimSuffix(conn.URL, "/")
+	if !plex.ServiceOrigin.MatchString(origin) {
+		return ErrAPI
+	}
+	req, err := http.NewRequestWithContext(ctx, method, origin+"/api/v3/"+path, body)
 	if err != nil {
 		return ErrAPI
 	}

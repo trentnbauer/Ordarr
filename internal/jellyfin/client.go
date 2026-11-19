@@ -83,7 +83,11 @@ func (c *Client) get(ctx context.Context, base, token, path string, out any) err
 	if _, err := plex.NormalizeURL(base, true); err != nil || len(token) > 4096 || !validToken.MatchString(token) {
 		return ErrAuth
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", base+path, nil)
+	origin := strings.TrimSuffix(base, "/")
+	if !plex.ServiceOrigin.MatchString(origin) {
+		return ErrAuth
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", origin+path, nil)
 	if err != nil {
 		return ErrAPI
 	}

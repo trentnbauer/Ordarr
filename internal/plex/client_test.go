@@ -188,3 +188,17 @@ func TestURLAndTokenValidation(t *testing.T) {
 	}
 
 }
+
+func TestServiceOriginMatchesNormalizedURLs(t *testing.T) {
+	for _, raw := range []string{"https://plex.home.lan:32400", "http://127.0.0.1:8989/", "https://[2001:db8::1]:8096", "https://Sonarr.Example.com"} {
+		base, err := NormalizeURL(raw, true)
+		if err != nil || !ServiceOrigin.MatchString(strings.TrimSuffix(base, "/")) {
+			t.Errorf("%s -> %q %v not accepted", raw, base, err)
+		}
+	}
+	for _, bad := range []string{"https://host/path", "https://host?x=1", "https://user@host", "ftp://host", "https://host:99999x"} {
+		if ServiceOrigin.MatchString(bad) {
+			t.Error("accepted", bad)
+		}
+	}
+}
