@@ -11,6 +11,7 @@ services:
       ORDARR_ADDR: 0.0.0.0:8080
       ORDARR_DATA_DIR: /data
       ORDARR_SECURE_COOKIES: ${ORDARR_SECURE_COOKIES:-false}
+      ORDARR_COMMUNITY_REPO: ${ORDARR_COMMUNITY_REPO:-trentnbauer/OrdarrCollections}
       TZ: ${TZ:-Etc/UTC}
     volumes:
       - ordarr-data:/data

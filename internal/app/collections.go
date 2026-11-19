@@ -228,6 +228,9 @@ func (a *App) changeCollection(w http.ResponseWriter, r *http.Request) {
 	if action == "metadata" {
 		location += "?tab=settings"
 	}
+	if action == "add" {
+		location += "?add=1#entry-form"
+	}
 	if (action == "move" || action == "edit") && len(change.IDs) == 1 {
 		location += "#entry-" + change.IDs[0]
 	}
