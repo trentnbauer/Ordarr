@@ -40,6 +40,9 @@ func Resolve(entry Identity, items []Item, manual string) Match {
 			candidates = append(candidates, item)
 		}
 	}
+	return decide(candidates, unknown, manual)
+}
+func decide(candidates []Item, unknown bool, manual string) Match {
 	if len(candidates) > 1 {
 		return Match{State: "unmatched", Reason: "Several exact candidates exist. Choose an explicit item ID."}
 	}

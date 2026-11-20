@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/trentnbauer/Ordarr/internal/arr"
 	"github.com/trentnbauer/Ordarr/internal/community"
 	"github.com/trentnbauer/Ordarr/internal/store"
 	"github.com/trentnbauer/Ordarr/internal/subscription"
@@ -123,6 +124,12 @@ func TestAddCollectionFromCommunityPasteAndURL(t *testing.T) {
 	}
 	// A server must be account-linked.
 	post("/add", url.Values{"source": {"community"}, "path": {"tiny.json"}, "policy": {"none"}, "server": {"nope"}}, 400)
+	// An invalid playlist name is refused before anything is created.
+	before, _ := a.store.CollectionCount(context.Background())
+	post("/add", url.Values{"source": {"community"}, "path": {"tiny.json"}, "policy": {"none"}, "server": {""}, "playlist": {strings.Repeat("x", 201)}}, 400)
+	if after, _ := a.store.CollectionCount(context.Background()); after != before {
+		t.Fatal("collection created despite an invalid playlist name")
+	}
 	// Paste creates an independent collection; invalid YAML re-renders the modal.
 	post("/add", url.Values{"source": {"paste"}, "document": {tinyOrder}}, 303)
 	res = post("/add", url.Values{"source": {"paste"}, "document": {"version: 2"}}, 400)
@@ -192,6 +199,24 @@ func TestSourceSkipAndUnfollow(t *testing.T) {
 	c, _ := a.store.Collection(context.Background(), id)
 	if c.Entries[2].Title != "Film C" {
 		t.Fatal("skipped update was applied")
+	}
+	// Approving a different version clears the skip, so reverting upstream to
+	// the skipped content is offered again rather than silently ignored.
+	other := strings.Replace(tinyOrder, `"Film A"`, `"Film A (remastered)"`, 1)
+	fakeSources(t, a, map[string]string{"tiny.json": other})
+	if err := a.fetchSource(context.Background(), store.Job{Target: sub.ID}); err != nil {
+		t.Fatal(err)
+	}
+	sv = sourceViewFor(t, a, id)
+	if w = request(h, "POST", "/collections/"+id+"/source", url.Values{"csrf": {csrf.Value}, "action": {"approve"}, "revision": {sv[0]}, "pending_hash": {sv[1]}}, session, csrf); w.Code != 303 {
+		t.Fatal("approve", w.Code, w.Body.String())
+	}
+	fakeSources(t, a, map[string]string{"tiny.json": changed})
+	if err := a.fetchSource(context.Background(), store.Job{Target: sub.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if sub, _ = a.store.CollectionSubscription(context.Background(), id); len(sub.Pending) == 0 {
+		t.Fatal("previously skipped content was not offered after another version was approved")
 	}
 	w = request(h, "POST", "/collections/"+id+"/source", url.Values{"csrf": {csrf.Value}, "action": {"unfollow"}, "revision": {"1"}}, session, csrf)
 	if w.Code != 409 {
@@ -289,3 +314,34 @@ func TestShellPagesRender(t *testing.T) {
 
 func itoa(n int) string      { return strconv.Itoa(n) }
 func hashOf(b []byte) string { return fmt.Sprintf("%x", sha256.Sum256(b)) }
+
+func TestApproveAllReachesOldPendingRequests(t *testing.T) {
+	a, h := fixture(t)
+	session, csrf := setup(t, h)
+	ctx := context.Background()
+	c := store.ArrConnection{ID: "radarr", Kind: "radarr", Name: "Radarr", BaseURL: "https://radarr.example", KeyCipher: a.vault.Seal("k", "arr:radarr:key"), Snapshot: arr.Snapshot{Version: "5"}}
+	if err := a.store.CreateArr(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	c, _ = a.store.ArrConnection(ctx, "radarr")
+	// 120 requests: the oldest 30 pending, the newest 90 already completed.
+	for i := 1; i <= 120; i++ {
+		id, err := a.store.ProposeAcquisition(ctx, c, i, "Movie "+itoa(i), "automatic", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.store.DB.Exec("UPDATE acquisition_requests SET created_at=? WHERE id=?", i, id)
+		if i > 30 {
+			a.store.FinishAcquisition(ctx, id, "completed", "done")
+		}
+	}
+	if !strings.Contains(request(h, "GET", "/settings/acquisition?id=radarr", nil, session, csrf).Body.String(), "Waiting for approval · 30") {
+		t.Fatal("waiting list misses older pending requests")
+	}
+	if w := request(h, "POST", "/settings/acquisition/radarr/approve-all", url.Values{"csrf": {csrf.Value}, "confirm": {"yes"}}, session, csrf); w.Code != 303 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if pending, _ := a.store.PendingAcquisitions(ctx, "radarr"); len(pending) != 0 {
+		t.Fatalf("%d requests still pending after Approve all", len(pending))
+	}
+}

@@ -44,7 +44,7 @@ func blockedIP(ip netip.Addr) bool {
 
 // ServiceOrigin matches a normalized service origin: scheme, host and optional
 // port only. Clients check it immediately before building a request URL.
-var ServiceOrigin = regexp.MustCompile(`^https?://(?:[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?)*|\[[0-9a-f:.]+\])(?::[0-9]{1,5})?$`)
+var ServiceOrigin = regexp.MustCompile(`^https?://(?:[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?)*\.?|\[[0-9a-f:.]+\])(?::[0-9]{1,5})?$`)
 
 func NormalizeURL(raw string, allowHTTP bool) (string, error) {
 	if len(raw) > 2048 {

@@ -83,6 +83,16 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 			}
 		}
 	}
+	byTitle := func(list []waitingSync) func(i, j int) bool {
+		return func(i, j int) bool {
+			if list[i].Collection != list[j].Collection {
+				return list[i].Collection < list[j].Collection
+			}
+			return list[i].DestinationID < list[j].DestinationID
+		}
+	}
+	sort.Slice(v.Failed, byTitle(v.Failed))
+	sort.Slice(v.Approvals, byTitle(v.Approvals))
 	if v.Requests, err = a.pendingRequests(ctx); err != nil {
 		return nil, err
 	}
@@ -342,6 +352,7 @@ func (a *App) jellyfinSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if err == nil {
 			v.Ready, v.Items, v.ScannedAt = true, len(items), scanned
+			index := jellyfin.NewIndex(items)
 			ids, err := a.store.CollectionIDs(r.Context())
 			if err != nil {
 				a.fail(w, "collections failed")
@@ -362,7 +373,7 @@ func (a *App) jellyfinSettings(w http.ResponseWriter, r *http.Request) {
 				}
 				m := jellyfinCollectionMatch{ID: c.ID, Title: c.Title, Total: len(c.Entries)}
 				for _, e := range c.Entries {
-					result := jellyfin.Resolve(jellyfin.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, items, manual[e.ID])
+					result := index.Resolve(jellyfin.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, manual[e.ID])
 					if result.State != "missing" && result.State != "unmatched" {
 						m.Found++
 					}
@@ -482,10 +493,23 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 		return nil, err
 	}
 	pending := map[string]int{}
-	for _, req := range requests {
-		if req.State == "pending" {
-			pending[req.ConnectionID]++
+	counts, err := a.store.DB.QueryContext(ctx, "SELECT connection_id,count(*) FROM acquisition_requests WHERE state='pending' GROUP BY connection_id")
+	if err != nil {
+		return nil, err
+	}
+	for counts.Next() {
+		var id string
+		var n int
+		if err = counts.Scan(&id, &n); err != nil {
+			counts.Close()
+			return nil, err
 		}
+		pending[id] = n
+	}
+	err = counts.Err()
+	counts.Close()
+	if err != nil {
+		return nil, err
 	}
 	v := &arrPageView{Adding: r.URL.Query().Get("new") == "1" || len(o.Arr) == 0}
 	selected := r.URL.Query().Get("id")
@@ -530,13 +554,11 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 	if d.Attempts, err = a.store.AttemptsSince(ctx, conn.ID, time.Now().Add(-24*time.Hour)); err != nil {
 		return nil, err
 	}
+	if d.Waiting, err = a.store.PendingAcquisitions(ctx, conn.ID); err != nil {
+		return nil, err
+	}
 	for _, req := range requests {
-		if req.ConnectionID != conn.ID {
-			continue
-		}
-		if req.State == "pending" {
-			d.Waiting = append(d.Waiting, req)
-		} else {
+		if req.ConnectionID == conn.ID && req.State != "pending" {
 			d.History = append(d.History, req)
 		}
 	}
@@ -596,15 +618,12 @@ func (a *App) approveAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Confirm the whole-media request effect before approving.", 400)
 		return
 	}
-	requests, err := a.store.Acquisitions(r.Context())
+	requests, err := a.store.PendingAcquisitions(r.Context(), c.ID)
 	if err != nil {
 		a.fail(w, "request history failed")
 		return
 	}
 	for _, req := range requests {
-		if req.ConnectionID != c.ID || req.State != "pending" {
-			continue
-		}
 		if req.ConnectionRevision != c.Revision {
 			err = a.store.RetryAcquisition(r.Context(), req.ID, c.Revision)
 		} else {

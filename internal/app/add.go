@@ -226,6 +226,10 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	server := r.PostForm.Get("server")
+	if !store.ValidPlaylistName(r.PostForm.Get("playlist")) {
+		retry(400, errors.New("Use a playlist name of 1–200 characters, or leave it blank to use the collection title."))
+		return
+	}
 	if server != "" {
 		conn, err := a.store.PlexConnection(ctx, server)
 		if err != nil || conn.AccountID != 1 {
@@ -315,8 +319,10 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 	if server != "" {
 		destination, err := a.store.CreateDestinationNamed(ctx, id, server, "authoritative", defaults.SyncInterval, r.PostForm.Get("playlist"))
 		if err != nil {
-			// The collection exists; send the administrator to finish publishing.
-			http.Redirect(w, r, "/collections/"+id+"?tab=publishing", 303)
+			// The collection exists; send the administrator to finish publishing,
+			// and say why the playlist wasn't created.
+			a.logger.Error("playlist destination for a new collection failed", "error", err)
+			http.Redirect(w, r, "/collections/"+id+"?tab=publishing&publish=failed", 303)
 			return
 		}
 		if _, err = a.store.QueueJob(ctx, "sync", destination); err != nil {

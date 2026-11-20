@@ -86,6 +86,12 @@ func (s *Store) SubscriptionURLs(ctx context.Context) (map[string]string, error)
 	return result, rows.Err()
 }
 
+// ValidPlaylistName reports whether name is usable as a playlist name; empty
+// means "use the collection title".
+func ValidPlaylistName(name string) bool {
+	return strings.TrimSpace(name) == "" || validTitle(name)
+}
+
 // CreateDestinationNamed is CreateDestination with an explicit playlist name.
 // The Ordarr ownership marker is always appended.
 func (s *Store) CreateDestinationNamed(ctx context.Context, collection, connection, policy string, interval int, name string) (string, error) {
@@ -432,4 +438,23 @@ func (s *Store) CollectionRefs(ctx context.Context) ([]CollectionRef, error) {
 		refs = append(refs, r)
 	}
 	return refs, rows.Err()
+}
+
+// PendingAcquisitions lists every request waiting for approval on one service,
+// oldest first, without the history listing's cap.
+func (s *Store) PendingAcquisitions(ctx context.Context, connection string) ([]AcquisitionRequest, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT * FROM acquisition_requests WHERE connection_id=? AND state='pending' ORDER BY created_at,id", connection)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []AcquisitionRequest
+	for rows.Next() {
+		r, err := scanAcquisition(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, r)
+	}
+	return list, rows.Err()
 }

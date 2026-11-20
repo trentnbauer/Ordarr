@@ -34,6 +34,17 @@ type availabilityCache struct {
 	values map[availabilityKey]availabilityEntry
 }
 
+// prune drops cached results for collections that no longer exist.
+func (c *availabilityCache) prune(live map[string]bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k := range c.values {
+		if !live[k.collection] {
+			delete(c.values, k)
+		}
+	}
+}
+
 func (c *availabilityCache) bump() {
 	c.mu.Lock()
 	c.manual++

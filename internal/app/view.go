@@ -113,11 +113,14 @@ func (o *overview) connectionName(id string) string {
 // availabilityAll matches every collection against its primary server.
 func (a *App) availabilityAll(ctx context.Context, o *overview) (map[string]availability, error) {
 	groups := map[string][]store.CollectionRef{}
+	live := map[string]bool{}
 	for _, ref := range o.Refs {
+		live[ref.ID] = true
 		if v, ok := o.primary(ref.ID); ok {
 			groups[v.ID] = append(groups[v.ID], ref)
 		}
 	}
+	a.avail.prune(live)
 	result := map[string]availability{}
 	for conn, refs := range groups {
 		values, err := a.availabilityFor(ctx, refs, conn)
