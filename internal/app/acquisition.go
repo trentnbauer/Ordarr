@@ -11,16 +11,6 @@ import (
 	"time"
 )
 
-type acquisitionView struct {
-	Connections     []store.ArrConnection
-	Requests        []store.AcquisitionRequest
-	Collection      store.Collection
-	PlexConnections []plexView
-	Statuses        []acquisitionStatus
-	Bindings        map[string]string
-}
-type acquisitionStatus struct{ Connection, Title, Status string }
-
 func (a *App) arrAccess(c store.ArrConnection) (arr.Connection, error) {
 	key, err := a.vault.Open(c.KeyCipher, "arr:"+c.ID+":key")
 	return arr.Connection{Kind: c.Kind, URL: c.BaseURL, Key: key}, err

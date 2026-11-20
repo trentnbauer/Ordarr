@@ -436,13 +436,29 @@ func (a *App) editJellyfin(w http.ResponseWriter, r *http.Request) {
 
 // ---- Sonarr / Radarr ----
 
+// arrView is the only Sonarr/Radarr projection templates receive. It has no
+// key field, so no template can render the API key or its ciphertext.
+type arrView struct {
+	ID, Kind, Name, BaseURL     string
+	ProfileID, RootID, Revision int
+	Snapshot                    arr.Snapshot
+	CheckedAt                   int64
+	Automatic, RequireApproval  bool
+	DailyLimit                  int
+	Exclusions                  string
+}
+
+func arrPublic(c store.ArrConnection) arrView {
+	return arrView{ID: c.ID, Kind: c.Kind, Name: c.Name, BaseURL: c.BaseURL, ProfileID: c.ProfileID, RootID: c.RootID, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: c.CheckedAt, Automatic: c.Automatic, RequireApproval: c.RequireApproval, DailyLimit: c.DailyLimit, Exclusions: c.Exclusions}
+}
+
 type arrListItem struct {
 	ID, Name, Kind, Host, Status string
 	Warn, Active                 bool
 }
 type optIn struct{ ID, Title, Plex string }
 type arrDetail struct {
-	Connection                    store.ArrConnection
+	Connection                    arrView
 	Waiting, History              []store.AcquisitionRequest
 	Queued, Downloading, Attempts int
 	Mode                          string
@@ -549,7 +565,7 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 	if !found {
 		return nil, sql.ErrNoRows
 	}
-	d := &arrDetail{Connection: conn, Mode: arrMode(conn), Plex: o.Plex}
+	d := &arrDetail{Connection: arrPublic(conn), Mode: arrMode(conn), Plex: o.Plex}
 	d.Queued, d.Downloading = queueCounts(conn.Snapshot)
 	if d.Attempts, err = a.store.AttemptsSince(ctx, conn.ID, time.Now().Add(-24*time.Hour)); err != nil {
 		return nil, err

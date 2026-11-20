@@ -75,7 +75,7 @@ type collectionView struct {
 	SourceIntervals       []intervalOption
 	SyncIntervals         []intervalOption
 	Created               bool
-	Arr                   []store.ArrConnection
+	Arr                   []arrView
 	Added, Moved, Changed int
 	Removed               int
 }
@@ -203,7 +203,9 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	for _, j := range o.Jellyfin {
 		v.Jellyfin = append(v.Jellyfin, jellyfinPublic(j))
 	}
-	v.Arr = o.Arr
+	for _, c := range o.Arr {
+		v.Arr = append(v.Arr, arrPublic(c))
+	}
 	interval := o.Defaults.SyncInterval
 	if len(v.Destinations) > 0 {
 		interval = v.Destinations[0].IntervalMinutes
