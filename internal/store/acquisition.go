@@ -11,7 +11,7 @@ import (
 
 type ArrConnection struct {
 	ID, Kind, Name, BaseURL     string
-	KeyCipher                   []byte
+	KeyCipher                   []byte `json:"-"`
 	ProfileID, RootID, Revision int
 	Snapshot                    arr.Snapshot
 	CheckedAt                   int64

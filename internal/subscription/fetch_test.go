@@ -26,12 +26,12 @@ func TestSourceURLAndAddressBoundaries(t *testing.T) {
 }
 
 func TestPublicHTTPSPattern(t *testing.T) {
-	for _, ok := range []string{"https://raw.githubusercontent.com/trentnbauer/OrdarrCollections/main/mcu-main-timeline.yaml", "https://example.com:443/a%20b.yaml?ref=main", "https://example.com"} {
+	for _, ok := range []string{"https://raw.githubusercontent.com/trentnbauer/OrdarrCollections/main/mcu-main-timeline.yaml", "https://example.com:443/a%20b.yaml?ref=main", "https://example.com", "https://cdn.jsdelivr.net/gh/fans/orders@main/order.yaml"} {
 		if !publicHTTPS.MatchString(ok) {
 			t.Error("rejected", ok)
 		}
 	}
-	for _, bad := range []string{"http://example.com/a.yaml", "https://user@example.com/a", "https://example.com:8443/a", "https://example.com/a#frag", "https://exa mple.com/", "https://[::1]/a", "https://example.com/a\nb"} {
+	for _, bad := range []string{"http://example.com/a.yaml", "https://user@example.com/a", "https://user:pw@example.com/a", "https://example.com@evil.test/a", "https://example.com:8443/a", "https://example.com/a#frag", "https://exa mple.com/", "https://[::1]/a", "https://example.com/a\nb"} {
 		if publicHTTPS.MatchString(bad) {
 			t.Error("accepted", bad)
 		}

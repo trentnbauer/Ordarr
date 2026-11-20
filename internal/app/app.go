@@ -106,7 +106,6 @@ type attempt struct {
 type page struct {
 	JellyfinConnections                                  []jellyfinView
 	JellyfinMatches                                      *jellyfinMatchView
-	Acquisition                                          *acquisitionView
 	Source                                               *sourceView
 	Destinations                                         []store.Destination
 	SyncRuns                                             []store.SyncRun

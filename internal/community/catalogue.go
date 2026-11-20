@@ -90,7 +90,12 @@ func (c *Catalogue) Orders(ctx context.Context) ([]Order, error) {
 		}
 		return nil, ErrUnavailable
 	}
-	orders, err := c.load(ctx)
+	// Refresh on a context detached from the caller: one cancelled page load
+	// must not fail the shared catalogue. Concurrent callers wait for this one
+	// refresh rather than starting their own.
+	loadCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+	defer cancel()
+	orders, err := c.load(loadCtx)
 	if err != nil {
 		c.failed = now
 		if c.orders != nil {

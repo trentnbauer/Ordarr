@@ -53,9 +53,10 @@ func publicIP(ip netip.Addr) bool {
 }
 
 // publicHTTPS matches an HTTPS URL with a plain DNS host (or IPv4 address),
-// the default port, and no credentials or fragment. ValidateURL and the
+// the default port, and no credentials or fragment. "@" is allowed only in the
+// path or query (jsDelivr-style "repo@branch" URLs), never in the authority. ValidateURL and the
 // dialer still apply; this is a final syntactic gate before the request.
-var publicHTTPS = regexp.MustCompile(`^https://[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::443)?(?:[/?][^\s#@]*)?$`)
+var publicHTTPS = regexp.MustCompile(`^https://[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.?(?::443)?(?:[/?][^\s#]*)?$`)
 
 func Fetch(ctx context.Context, raw, etag, modified string) (Result, error) {
 	var out Result

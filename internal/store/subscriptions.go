@@ -115,7 +115,7 @@ func (s *Store) ReceiveSource(ctx context.Context, sub Subscription, data []byte
 		if err = replaceSource(ctx, tx, sub, c); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "UPDATE subscriptions SET last_valid=?,pending=NULL,etag=?,modified=?,failures=0,checked_at=?,message='Source applied.' WHERE id=?", data, etag, modified, time.Now().Unix(), sub.ID)
+		_, err = tx.ExecContext(ctx, "UPDATE subscriptions SET last_valid=?,pending=NULL,skipped_hash='',etag=?,modified=?,failures=0,checked_at=?,message='Source applied.' WHERE id=?", data, etag, modified, time.Now().Unix(), sub.ID)
 	}
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func (s *Store) ApproveSource(ctx context.Context, sub Subscription, c Collectio
 	if err = replaceSource(ctx, tx, sub, c); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "UPDATE subscriptions SET last_valid=pending,pending=NULL,revision=revision+1,message='Approved source applied.' WHERE id=?", sub.ID)
+	_, err = tx.ExecContext(ctx, "UPDATE subscriptions SET last_valid=pending,pending=NULL,skipped_hash='',revision=revision+1,message='Approved source applied.' WHERE id=?", sub.ID)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (s *Store) SubscriptionPolicy(ctx context.Context, id, policy string, revis
 	if policy != "automatic" && policy != "approval" && policy != "paused" {
 		return ErrInvalid
 	}
-	result, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET policy=?,interval_minutes=?,revision=revision+1,etag='',modified='',next_run=0 WHERE id=? AND revision=?", policy, interval, id, revision)
+	result, err := s.DB.ExecContext(ctx, "UPDATE subscriptions SET policy=?,interval_minutes=?,revision=revision+1,etag='',modified='',skipped_hash='',next_run=0 WHERE id=? AND revision=?", policy, interval, id, revision)
 	if err != nil {
 		return err
 	}
