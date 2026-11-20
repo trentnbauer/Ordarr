@@ -1,0 +1,2171 @@
+# Ordarr version 1 collection; import using Import / subscribe.
+# ONE collection, main MCU timeline. Movies and individual episodes share one order.
+# Order: Disney+ main-story timeline as reproduced at:
+# https://en.wikipedia.org/wiki/Marvel_Cinematic_Universe_timeline
+# Episode numbering and series TVDB IDs: https://www.tvmaze.com/api
+# I Am Groot S01E01 precedes Guardians Vol. 2, following the official timeline book.
+# Spider-Man: Brand New Day is placed in 2028, before the adjacent VisionQuest block.
+# Excluded: Loki/TVA, What If...?, Marvel Zombies, Deadpool & Wolverine,
+# The Fantastic Four: First Steps, Your Friendly Neighborhood Spider-Man, X-Men '97,
+# other alternate-universe franchises, documentaries and disputed-canon legacy shows.
+# Agent Carter below is the 2013 One-Shot, not the separate ABC series.
+# Full-story ordering is not a scene-by-scene chronology; concurrent stories and
+# post-credit scenes can occur outside their block. Episodes unaired on the cutoff
+# date are omitted. Provider IDs identify metadata, not availability in your library.
+version: 1
+id: "mcu-main-timeline"
+title: "Marvel Cinematic Universe - Main Timeline"
+description: "Main-timeline MCU films, canon series, shorts and specials in main-story chronological order. Includes the Defenders Saga; excludes TVA/alternate-universe stories, disputed-canon legacy series and unreleased content. Complete story blocks are kept together; flashbacks and later-set post-credit scenes are not split. Entries checked against aired episode listings through 14 November 2026."
+entries:
+  - id: "eyes-of-wakanda-s01e01"
+    kind: "episode"
+    title: "Eyes of Wakanda - S01E01: Into the Lion's Den"
+    provider: "tvdb"
+    external_id: "443358"
+    season: 1
+    episode: 1
+  - id: "eyes-of-wakanda-s01e02"
+    kind: "episode"
+    title: "Eyes of Wakanda - S01E02: Legends and Lies"
+    provider: "tvdb"
+    external_id: "443358"
+    season: 1
+    episode: 2
+  - id: "eyes-of-wakanda-s01e03"
+    kind: "episode"
+    title: "Eyes of Wakanda - S01E03: Lost and Found"
+    provider: "tvdb"
+    external_id: "443358"
+    season: 1
+    episode: 3
+  - id: "eyes-of-wakanda-s01e04"
+    kind: "episode"
+    title: "Eyes of Wakanda - S01E04: The Last Panther"
+    provider: "tvdb"
+    external_id: "443358"
+    season: 1
+    episode: 4
+  - id: "captain-america-first-avenger"
+    kind: "movie"
+    title: "Captain America: The First Avenger"
+    provider: "tmdb"
+    external_id: "1771"
+  - id: "agent-carter-one-shot"
+    kind: "movie"
+    title: "Marvel One-Shot: Agent Carter"
+    provider: "imdb"
+    external_id: "tt3067038"
+  - id: "captain-marvel"
+    kind: "movie"
+    title: "Captain Marvel"
+    provider: "tmdb"
+    external_id: "299537"
+  - id: "iron-man"
+    kind: "movie"
+    title: "Iron Man"
+    provider: "tmdb"
+    external_id: "1726"
+  - id: "iron-man-2"
+    kind: "movie"
+    title: "Iron Man 2"
+    provider: "tmdb"
+    external_id: "10138"
+  - id: "incredible-hulk"
+    kind: "movie"
+    title: "The Incredible Hulk"
+    provider: "tmdb"
+    external_id: "1724"
+  - id: "funny-thing-thors-hammer"
+    kind: "movie"
+    title: "Marvel One-Shot: A Funny Thing Happened on the Way to Thor's Hammer"
+    provider: "imdb"
+    external_id: "tt2011109"
+  - id: "thor"
+    kind: "movie"
+    title: "Thor"
+    provider: "tmdb"
+    external_id: "10195"
+  - id: "consultant"
+    kind: "movie"
+    title: "Marvel One-Shot: The Consultant"
+    provider: "imdb"
+    external_id: "tt2011118"
+  - id: "avengers"
+    kind: "movie"
+    title: "The Avengers"
+    provider: "tmdb"
+    external_id: "24428"
+  - id: "item-47"
+    kind: "movie"
+    title: "Marvel One-Shot: Item 47"
+    provider: "imdb"
+    external_id: "tt2247732"
+  - id: "thor-dark-world"
+    kind: "movie"
+    title: "Thor: The Dark World"
+    provider: "tmdb"
+    external_id: "76338"
+  - id: "iron-man-3"
+    kind: "movie"
+    title: "Iron Man 3"
+    provider: "tmdb"
+    external_id: "68721"
+  - id: "all-hail-the-king"
+    kind: "movie"
+    title: "Marvel One-Shot: All Hail the King"
+    provider: "imdb"
+    external_id: "tt3438640"
+  - id: "captain-america-winter-soldier"
+    kind: "movie"
+    title: "Captain America: The Winter Soldier"
+    provider: "tmdb"
+    external_id: "100402"
+  - id: "guardians-galaxy"
+    kind: "movie"
+    title: "Guardians of the Galaxy"
+    provider: "tmdb"
+    external_id: "118340"
+  - id: "i-am-groot-s01e01"
+    kind: "episode"
+    title: "I Am Groot - S01E01: Groot's First Steps"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 1
+    episode: 1
+  - id: "guardians-galaxy-2"
+    kind: "movie"
+    title: "Guardians of the Galaxy Vol. 2"
+    provider: "tmdb"
+    external_id: "283995"
+  - id: "i-am-groot-s01e02"
+    kind: "episode"
+    title: "I Am Groot - S01E02: The Little Guy"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 1
+    episode: 2
+  - id: "i-am-groot-s01e03"
+    kind: "episode"
+    title: "I Am Groot - S01E03: Groot's Pursuit"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 1
+    episode: 3
+  - id: "i-am-groot-s01e04"
+    kind: "episode"
+    title: "I Am Groot - S01E04: Groot Takes a Bath"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 1
+    episode: 4
+  - id: "i-am-groot-s01e05"
+    kind: "episode"
+    title: "I Am Groot - S01E05: Magnum Opus"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 1
+    episode: 5
+  - id: "i-am-groot-s02e01"
+    kind: "episode"
+    title: "I Am Groot - S02E01: Are You My Groot?"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 2
+    episode: 1
+  - id: "i-am-groot-s02e02"
+    kind: "episode"
+    title: "I Am Groot - S02E02: Groot Noses Around"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 2
+    episode: 2
+  - id: "i-am-groot-s02e03"
+    kind: "episode"
+    title: "I Am Groot - S02E03: Groot's Snow Day"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 2
+    episode: 3
+  - id: "i-am-groot-s02e04"
+    kind: "episode"
+    title: "I Am Groot - S02E04: Groot's Sweet Treat"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 2
+    episode: 4
+  - id: "i-am-groot-s02e05"
+    kind: "episode"
+    title: "I Am Groot - S02E05: Groot and the Great Prophecy"
+    provider: "tvdb"
+    external_id: "393201"
+    season: 2
+    episode: 5
+  - id: "daredevil-s01e01"
+    kind: "episode"
+    title: "Daredevil - S01E01: Into the Ring"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 1
+  - id: "daredevil-s01e02"
+    kind: "episode"
+    title: "Daredevil - S01E02: Cut Man"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 2
+  - id: "daredevil-s01e03"
+    kind: "episode"
+    title: "Daredevil - S01E03: Rabbit in a Snowstorm"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 3
+  - id: "daredevil-s01e04"
+    kind: "episode"
+    title: "Daredevil - S01E04: In the Blood"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 4
+  - id: "daredevil-s01e05"
+    kind: "episode"
+    title: "Daredevil - S01E05: World on Fire"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 5
+  - id: "daredevil-s01e06"
+    kind: "episode"
+    title: "Daredevil - S01E06: Condemned"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 6
+  - id: "daredevil-s01e07"
+    kind: "episode"
+    title: "Daredevil - S01E07: Stick"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 7
+  - id: "daredevil-s01e08"
+    kind: "episode"
+    title: "Daredevil - S01E08: Shadows in the Glass"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 8
+  - id: "daredevil-s01e09"
+    kind: "episode"
+    title: "Daredevil - S01E09: Speak of the Devil"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 9
+  - id: "daredevil-s01e10"
+    kind: "episode"
+    title: "Daredevil - S01E10: Nelson v. Murdock"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 10
+  - id: "daredevil-s01e11"
+    kind: "episode"
+    title: "Daredevil - S01E11: The Path of the Righteous"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 11
+  - id: "daredevil-s01e12"
+    kind: "episode"
+    title: "Daredevil - S01E12: The Ones We Leave Behind"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 12
+  - id: "daredevil-s01e13"
+    kind: "episode"
+    title: "Daredevil - S01E13: Daredevil"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 1
+    episode: 13
+  - id: "jessica-jones-s01e01"
+    kind: "episode"
+    title: "Jessica Jones - S01E01: AKA Ladies Night"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 1
+  - id: "jessica-jones-s01e02"
+    kind: "episode"
+    title: "Jessica Jones - S01E02: AKA Crush Syndrome"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 2
+  - id: "jessica-jones-s01e03"
+    kind: "episode"
+    title: "Jessica Jones - S01E03: AKA It's Called Whiskey"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 3
+  - id: "jessica-jones-s01e04"
+    kind: "episode"
+    title: "Jessica Jones - S01E04: AKA 99 Friends"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 4
+  - id: "jessica-jones-s01e05"
+    kind: "episode"
+    title: "Jessica Jones - S01E05: AKA The Sandwich Saved Me"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 5
+  - id: "jessica-jones-s01e06"
+    kind: "episode"
+    title: "Jessica Jones - S01E06: AKA You're a Winner!"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 6
+  - id: "jessica-jones-s01e07"
+    kind: "episode"
+    title: "Jessica Jones - S01E07: AKA Top Shelf Perverts"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 7
+  - id: "jessica-jones-s01e08"
+    kind: "episode"
+    title: "Jessica Jones - S01E08: AKA WWJD?"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 8
+  - id: "jessica-jones-s01e09"
+    kind: "episode"
+    title: "Jessica Jones - S01E09: AKA Sin Bin"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 9
+  - id: "jessica-jones-s01e10"
+    kind: "episode"
+    title: "Jessica Jones - S01E10: AKA 1,000 Cuts"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 10
+  - id: "jessica-jones-s01e11"
+    kind: "episode"
+    title: "Jessica Jones - S01E11: AKA I've Got the Blues"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 11
+  - id: "jessica-jones-s01e12"
+    kind: "episode"
+    title: "Jessica Jones - S01E12: AKA Take a Bloody Number"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 12
+  - id: "jessica-jones-s01e13"
+    kind: "episode"
+    title: "Jessica Jones - S01E13: AKA Smile"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 1
+    episode: 13
+  - id: "avengers-age-ultron"
+    kind: "movie"
+    title: "Avengers: Age of Ultron"
+    provider: "tmdb"
+    external_id: "99861"
+  - id: "ant-man"
+    kind: "movie"
+    title: "Ant-Man"
+    provider: "tmdb"
+    external_id: "102899"
+  - id: "daredevil-s02e01"
+    kind: "episode"
+    title: "Daredevil - S02E01: Bang"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 1
+  - id: "daredevil-s02e02"
+    kind: "episode"
+    title: "Daredevil - S02E02: Dogs to a Gunfight"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 2
+  - id: "daredevil-s02e03"
+    kind: "episode"
+    title: "Daredevil - S02E03: New York's Finest"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 3
+  - id: "daredevil-s02e04"
+    kind: "episode"
+    title: "Daredevil - S02E04: Penny and Dime"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 4
+  - id: "daredevil-s02e05"
+    kind: "episode"
+    title: "Daredevil - S02E05: Kinbaku"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 5
+  - id: "daredevil-s02e06"
+    kind: "episode"
+    title: "Daredevil - S02E06: Regrets Only"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 6
+  - id: "daredevil-s02e07"
+    kind: "episode"
+    title: "Daredevil - S02E07: Semper Fidelis"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 7
+  - id: "daredevil-s02e08"
+    kind: "episode"
+    title: "Daredevil - S02E08: Guilty as Sin"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 8
+  - id: "daredevil-s02e09"
+    kind: "episode"
+    title: "Daredevil - S02E09: Seven Minutes in Heaven"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 9
+  - id: "daredevil-s02e10"
+    kind: "episode"
+    title: "Daredevil - S02E10: The Man in the Box"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 10
+  - id: "daredevil-s02e11"
+    kind: "episode"
+    title: "Daredevil - S02E11: .380"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 11
+  - id: "daredevil-s02e12"
+    kind: "episode"
+    title: "Daredevil - S02E12: The Dark at the End of the Tunnel"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 12
+  - id: "daredevil-s02e13"
+    kind: "episode"
+    title: "Daredevil - S02E13: A Cold Day in Hell's Kitchen"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 2
+    episode: 13
+  - id: "luke-cage-s01e01"
+    kind: "episode"
+    title: "Luke Cage - S01E01: Moment of Truth"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 1
+  - id: "luke-cage-s01e02"
+    kind: "episode"
+    title: "Luke Cage - S01E02: Code of the Streets"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 2
+  - id: "luke-cage-s01e03"
+    kind: "episode"
+    title: "Luke Cage - S01E03: Who's Gonna Take the Weight?"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 3
+  - id: "luke-cage-s01e04"
+    kind: "episode"
+    title: "Luke Cage - S01E04: Step in the Arena"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 4
+  - id: "luke-cage-s01e05"
+    kind: "episode"
+    title: "Luke Cage - S01E05: Just to Get a Rep"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 5
+  - id: "luke-cage-s01e06"
+    kind: "episode"
+    title: "Luke Cage - S01E06: Suckas Need Bodyguards"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 6
+  - id: "luke-cage-s01e07"
+    kind: "episode"
+    title: "Luke Cage - S01E07: Manifest"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 7
+  - id: "luke-cage-s01e08"
+    kind: "episode"
+    title: "Luke Cage - S01E08: Blowin' Up the Spot"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 8
+  - id: "luke-cage-s01e09"
+    kind: "episode"
+    title: "Luke Cage - S01E09: DWYCK"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 9
+  - id: "luke-cage-s01e10"
+    kind: "episode"
+    title: "Luke Cage - S01E10: Take It Personal"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 10
+  - id: "luke-cage-s01e11"
+    kind: "episode"
+    title: "Luke Cage - S01E11: Now You're Mine"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 11
+  - id: "luke-cage-s01e12"
+    kind: "episode"
+    title: "Luke Cage - S01E12: Soliloquy of Chaos"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 12
+  - id: "luke-cage-s01e13"
+    kind: "episode"
+    title: "Luke Cage - S01E13: You Know My Steez"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 1
+    episode: 13
+  - id: "iron-fist-s01e01"
+    kind: "episode"
+    title: "Iron Fist - S01E01: Snow Gives Way"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 1
+  - id: "iron-fist-s01e02"
+    kind: "episode"
+    title: "Iron Fist - S01E02: Shadow Hawk Takes Flight"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 2
+  - id: "iron-fist-s01e03"
+    kind: "episode"
+    title: "Iron Fist - S01E03: Rolling Thunder Cannon Punch"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 3
+  - id: "iron-fist-s01e04"
+    kind: "episode"
+    title: "Iron Fist - S01E04: Eight Diagram Dragon Palm"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 4
+  - id: "iron-fist-s01e05"
+    kind: "episode"
+    title: "Iron Fist - S01E05: Under Leaf Pluck Lotus"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 5
+  - id: "iron-fist-s01e06"
+    kind: "episode"
+    title: "Iron Fist - S01E06: Immortal Emerges from Cave"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 6
+  - id: "iron-fist-s01e07"
+    kind: "episode"
+    title: "Iron Fist - S01E07: Felling Tree with Roots"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 7
+  - id: "iron-fist-s01e08"
+    kind: "episode"
+    title: "Iron Fist - S01E08: The Blessing of Many Fractures"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 8
+  - id: "iron-fist-s01e09"
+    kind: "episode"
+    title: "Iron Fist - S01E09: The Mistress of All Agonies"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 9
+  - id: "iron-fist-s01e10"
+    kind: "episode"
+    title: "Iron Fist - S01E10: Black Tiger Steals Heart"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 10
+  - id: "iron-fist-s01e11"
+    kind: "episode"
+    title: "Iron Fist - S01E11: Lead Horse Back to Stable"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 11
+  - id: "iron-fist-s01e12"
+    kind: "episode"
+    title: "Iron Fist - S01E12: Bar the Big Boss"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 12
+  - id: "iron-fist-s01e13"
+    kind: "episode"
+    title: "Iron Fist - S01E13: Dragon Plays with Fire"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 1
+    episode: 13
+  - id: "the-defenders-s01e01"
+    kind: "episode"
+    title: "The Defenders - S01E01: The H Word"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 1
+  - id: "the-defenders-s01e02"
+    kind: "episode"
+    title: "The Defenders - S01E02: Mean Right Hook"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 2
+  - id: "the-defenders-s01e03"
+    kind: "episode"
+    title: "The Defenders - S01E03: Worst Behavior"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 3
+  - id: "the-defenders-s01e04"
+    kind: "episode"
+    title: "The Defenders - S01E04: Royal Dragon"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 4
+  - id: "the-defenders-s01e05"
+    kind: "episode"
+    title: "The Defenders - S01E05: Take Shelter"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 5
+  - id: "the-defenders-s01e06"
+    kind: "episode"
+    title: "The Defenders - S01E06: Ashes, Ashes"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 6
+  - id: "the-defenders-s01e07"
+    kind: "episode"
+    title: "The Defenders - S01E07: Fish in the Jailhouse"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 7
+  - id: "the-defenders-s01e08"
+    kind: "episode"
+    title: "The Defenders - S01E08: The Defenders"
+    provider: "tvdb"
+    external_id: "326490"
+    season: 1
+    episode: 8
+  - id: "captain-america-civil-war"
+    kind: "movie"
+    title: "Captain America: Civil War"
+    provider: "tmdb"
+    external_id: "271110"
+  - id: "black-widow"
+    kind: "movie"
+    title: "Black Widow"
+    provider: "tmdb"
+    external_id: "497698"
+  - id: "black-panther"
+    kind: "movie"
+    title: "Black Panther"
+    provider: "tmdb"
+    external_id: "284054"
+  - id: "spider-man-homecoming"
+    kind: "movie"
+    title: "Spider-Man: Homecoming"
+    provider: "tmdb"
+    external_id: "315635"
+  - id: "the-punisher-s01e01"
+    kind: "episode"
+    title: "The Punisher - S01E01: 3AM"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 1
+  - id: "the-punisher-s01e02"
+    kind: "episode"
+    title: "The Punisher - S01E02: Two Dead Men"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 2
+  - id: "the-punisher-s01e03"
+    kind: "episode"
+    title: "The Punisher - S01E03: Kandahar"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 3
+  - id: "the-punisher-s01e04"
+    kind: "episode"
+    title: "The Punisher - S01E04: Resupply"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 4
+  - id: "the-punisher-s01e05"
+    kind: "episode"
+    title: "The Punisher - S01E05: Gunner"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 5
+  - id: "the-punisher-s01e06"
+    kind: "episode"
+    title: "The Punisher - S01E06: The Judas Goat"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 6
+  - id: "the-punisher-s01e07"
+    kind: "episode"
+    title: "The Punisher - S01E07: Crosshairs"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 7
+  - id: "the-punisher-s01e08"
+    kind: "episode"
+    title: "The Punisher - S01E08: Cold Steel"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 8
+  - id: "the-punisher-s01e09"
+    kind: "episode"
+    title: "The Punisher - S01E09: Front Toward Enemy"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 9
+  - id: "the-punisher-s01e10"
+    kind: "episode"
+    title: "The Punisher - S01E10: Virtue of the Vicious"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 10
+  - id: "the-punisher-s01e11"
+    kind: "episode"
+    title: "The Punisher - S01E11: Danger Close"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 11
+  - id: "the-punisher-s01e12"
+    kind: "episode"
+    title: "The Punisher - S01E12: Home"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 12
+  - id: "the-punisher-s01e13"
+    kind: "episode"
+    title: "The Punisher - S01E13: Memento Mori"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 1
+    episode: 13
+  - id: "doctor-strange"
+    kind: "movie"
+    title: "Doctor Strange"
+    provider: "tmdb"
+    external_id: "284052"
+  - id: "jessica-jones-s02e01"
+    kind: "episode"
+    title: "Jessica Jones - S02E01: AKA Start at the Beginning"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 1
+  - id: "jessica-jones-s02e02"
+    kind: "episode"
+    title: "Jessica Jones - S02E02: AKA Freak Accident"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 2
+  - id: "jessica-jones-s02e03"
+    kind: "episode"
+    title: "Jessica Jones - S02E03: AKA Sole Survivor"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 3
+  - id: "jessica-jones-s02e04"
+    kind: "episode"
+    title: "Jessica Jones - S02E04: AKA God Help the Hobo"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 4
+  - id: "jessica-jones-s02e05"
+    kind: "episode"
+    title: "Jessica Jones - S02E05: AKA The Octopus"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 5
+  - id: "jessica-jones-s02e06"
+    kind: "episode"
+    title: "Jessica Jones - S02E06: AKA Facetime"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 6
+  - id: "jessica-jones-s02e07"
+    kind: "episode"
+    title: "Jessica Jones - S02E07: AKA I Want Your Cray Cray"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 7
+  - id: "jessica-jones-s02e08"
+    kind: "episode"
+    title: "Jessica Jones - S02E08: AKA Ain't We Got Fun"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 8
+  - id: "jessica-jones-s02e09"
+    kind: "episode"
+    title: "Jessica Jones - S02E09: AKA Shark in the Bathtub, Monster in the Bed"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 9
+  - id: "jessica-jones-s02e10"
+    kind: "episode"
+    title: "Jessica Jones - S02E10: AKA Pork Chop"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 10
+  - id: "jessica-jones-s02e11"
+    kind: "episode"
+    title: "Jessica Jones - S02E11: AKA Three Lives and Counting"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 11
+  - id: "jessica-jones-s02e12"
+    kind: "episode"
+    title: "Jessica Jones - S02E12: AKA Pray for My Patsy"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 12
+  - id: "jessica-jones-s02e13"
+    kind: "episode"
+    title: "Jessica Jones - S02E13: AKA Playland"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 2
+    episode: 13
+  - id: "luke-cage-s02e01"
+    kind: "episode"
+    title: "Luke Cage - S02E01: Soul Brother #1"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 1
+  - id: "luke-cage-s02e02"
+    kind: "episode"
+    title: "Luke Cage - S02E02: Straighten It Out"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 2
+  - id: "luke-cage-s02e03"
+    kind: "episode"
+    title: "Luke Cage - S02E03: Wig Out"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 3
+  - id: "luke-cage-s02e04"
+    kind: "episode"
+    title: "Luke Cage - S02E04: I Get Physical"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 4
+  - id: "luke-cage-s02e05"
+    kind: "episode"
+    title: "Luke Cage - S02E05: All Souled Out"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 5
+  - id: "luke-cage-s02e06"
+    kind: "episode"
+    title: "Luke Cage - S02E06: The Basement"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 6
+  - id: "luke-cage-s02e07"
+    kind: "episode"
+    title: "Luke Cage - S02E07: On and On"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 7
+  - id: "luke-cage-s02e08"
+    kind: "episode"
+    title: "Luke Cage - S02E08: If It Ain't Rough, It Ain't Right"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 8
+  - id: "luke-cage-s02e09"
+    kind: "episode"
+    title: "Luke Cage - S02E09: For Pete's Sake"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 9
+  - id: "luke-cage-s02e10"
+    kind: "episode"
+    title: "Luke Cage - S02E10: The Main Ingredient"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 10
+  - id: "luke-cage-s02e11"
+    kind: "episode"
+    title: "Luke Cage - S02E11: The Creator"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 11
+  - id: "luke-cage-s02e12"
+    kind: "episode"
+    title: "Luke Cage - S02E12: Can't Front on Me"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 12
+  - id: "luke-cage-s02e13"
+    kind: "episode"
+    title: "Luke Cage - S02E13: They Reminisce Over You"
+    provider: "tvdb"
+    external_id: "304219"
+    season: 2
+    episode: 13
+  - id: "iron-fist-s02e01"
+    kind: "episode"
+    title: "Iron Fist - S02E01: The Fury of Iron Fist"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 1
+  - id: "iron-fist-s02e02"
+    kind: "episode"
+    title: "Iron Fist - S02E02: The City's Not for Burning"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 2
+  - id: "iron-fist-s02e03"
+    kind: "episode"
+    title: "Iron Fist - S02E03: This Deadly Secret..."
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 3
+  - id: "iron-fist-s02e04"
+    kind: "episode"
+    title: "Iron Fist - S02E04: Target: Iron Fist"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 4
+  - id: "iron-fist-s02e05"
+    kind: "episode"
+    title: "Iron Fist - S02E05: Heart of the Dragon"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 5
+  - id: "iron-fist-s02e06"
+    kind: "episode"
+    title: "Iron Fist - S02E06: The Dragon Dies at Dawn"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 6
+  - id: "iron-fist-s02e07"
+    kind: "episode"
+    title: "Iron Fist - S02E07: Morning of the Mindstorm"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 7
+  - id: "iron-fist-s02e08"
+    kind: "episode"
+    title: "Iron Fist - S02E08: Citadel on the Edge of Vengeance"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 8
+  - id: "iron-fist-s02e09"
+    kind: "episode"
+    title: "Iron Fist - S02E09: War Without End"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 9
+  - id: "iron-fist-s02e10"
+    kind: "episode"
+    title: "Iron Fist - S02E10: A Duel of Iron"
+    provider: "tvdb"
+    external_id: "317953"
+    season: 2
+    episode: 10
+  - id: "daredevil-s03e01"
+    kind: "episode"
+    title: "Daredevil - S03E01: Resurrection"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 1
+  - id: "daredevil-s03e02"
+    kind: "episode"
+    title: "Daredevil - S03E02: Please"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 2
+  - id: "daredevil-s03e03"
+    kind: "episode"
+    title: "Daredevil - S03E03: No Good Deed"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 3
+  - id: "daredevil-s03e04"
+    kind: "episode"
+    title: "Daredevil - S03E04: Blindsided"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 4
+  - id: "daredevil-s03e05"
+    kind: "episode"
+    title: "Daredevil - S03E05: The Perfect Game"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 5
+  - id: "daredevil-s03e06"
+    kind: "episode"
+    title: "Daredevil - S03E06: The Devil You Know"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 6
+  - id: "daredevil-s03e07"
+    kind: "episode"
+    title: "Daredevil - S03E07: Aftermath"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 7
+  - id: "daredevil-s03e08"
+    kind: "episode"
+    title: "Daredevil - S03E08: Upstairs/Downstairs"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 8
+  - id: "daredevil-s03e09"
+    kind: "episode"
+    title: "Daredevil - S03E09: Revelations"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 9
+  - id: "daredevil-s03e10"
+    kind: "episode"
+    title: "Daredevil - S03E10: Karen"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 10
+  - id: "daredevil-s03e11"
+    kind: "episode"
+    title: "Daredevil - S03E11: Reunion"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 11
+  - id: "daredevil-s03e12"
+    kind: "episode"
+    title: "Daredevil - S03E12: One Last Shot"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 12
+  - id: "daredevil-s03e13"
+    kind: "episode"
+    title: "Daredevil - S03E13: A New Napkin"
+    provider: "tvdb"
+    external_id: "281662"
+    season: 3
+    episode: 13
+  - id: "thor-ragnarok"
+    kind: "movie"
+    title: "Thor: Ragnarok"
+    provider: "tmdb"
+    external_id: "284053"
+  - id: "the-punisher-s02e01"
+    kind: "episode"
+    title: "The Punisher - S02E01: Roadhouse Blues"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 1
+  - id: "the-punisher-s02e02"
+    kind: "episode"
+    title: "The Punisher - S02E02: Fight or Flight"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 2
+  - id: "the-punisher-s02e03"
+    kind: "episode"
+    title: "The Punisher - S02E03: Trouble the Water"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 3
+  - id: "the-punisher-s02e04"
+    kind: "episode"
+    title: "The Punisher - S02E04: Scar Tissue"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 4
+  - id: "the-punisher-s02e05"
+    kind: "episode"
+    title: "The Punisher - S02E05: One-Eyed Jacks"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 5
+  - id: "the-punisher-s02e06"
+    kind: "episode"
+    title: "The Punisher - S02E06: Nakazat"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 6
+  - id: "the-punisher-s02e07"
+    kind: "episode"
+    title: "The Punisher - S02E07: One Bad Day"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 7
+  - id: "the-punisher-s02e08"
+    kind: "episode"
+    title: "The Punisher - S02E08: My Brother's Keeper"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 8
+  - id: "the-punisher-s02e09"
+    kind: "episode"
+    title: "The Punisher - S02E09: Flustercluck"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 9
+  - id: "the-punisher-s02e10"
+    kind: "episode"
+    title: "The Punisher - S02E10: The Dark Hearts of Men"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 10
+  - id: "the-punisher-s02e11"
+    kind: "episode"
+    title: "The Punisher - S02E11: The Abyss"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 11
+  - id: "the-punisher-s02e12"
+    kind: "episode"
+    title: "The Punisher - S02E12: Collision Course"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 12
+  - id: "the-punisher-s02e13"
+    kind: "episode"
+    title: "The Punisher - S02E13: The Whirlwind"
+    provider: "tvdb"
+    external_id: "331980"
+    season: 2
+    episode: 13
+  - id: "jessica-jones-s03e01"
+    kind: "episode"
+    title: "Jessica Jones - S03E01: A.K.A The Perfect Burger"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 1
+  - id: "jessica-jones-s03e02"
+    kind: "episode"
+    title: "Jessica Jones - S03E02: A.K.A You're Welcome"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 2
+  - id: "jessica-jones-s03e03"
+    kind: "episode"
+    title: "Jessica Jones - S03E03: A.K.A I Have No Spleen"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 3
+  - id: "jessica-jones-s03e04"
+    kind: "episode"
+    title: "Jessica Jones - S03E04: A.K.A Customer Service is Standing By"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 4
+  - id: "jessica-jones-s03e05"
+    kind: "episode"
+    title: "Jessica Jones - S03E05: A.K.A I Wish"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 5
+  - id: "jessica-jones-s03e06"
+    kind: "episode"
+    title: "Jessica Jones - S03E06: A.K.A Sorry Face"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 6
+  - id: "jessica-jones-s03e07"
+    kind: "episode"
+    title: "Jessica Jones - S03E07: A.K.A The Double Half-Wappinger"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 7
+  - id: "jessica-jones-s03e08"
+    kind: "episode"
+    title: "Jessica Jones - S03E08: A.K.A Camera Friendly"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 8
+  - id: "jessica-jones-s03e09"
+    kind: "episode"
+    title: "Jessica Jones - S03E09: A.K.A I Did Something Today"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 9
+  - id: "jessica-jones-s03e10"
+    kind: "episode"
+    title: "Jessica Jones - S03E10: A.K.A Hero Pants"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 10
+  - id: "jessica-jones-s03e11"
+    kind: "episode"
+    title: "Jessica Jones - S03E11: A.K.A Hellcat"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 11
+  - id: "jessica-jones-s03e12"
+    kind: "episode"
+    title: "Jessica Jones - S03E12: A.K.A A Lotta Worms"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 12
+  - id: "jessica-jones-s03e13"
+    kind: "episode"
+    title: "Jessica Jones - S03E13: A.K.A Everything"
+    provider: "tvdb"
+    external_id: "284190"
+    season: 3
+    episode: 13
+  - id: "ant-man-wasp"
+    kind: "movie"
+    title: "Ant-Man and the Wasp"
+    provider: "tmdb"
+    external_id: "363088"
+  - id: "avengers-infinity-war"
+    kind: "movie"
+    title: "Avengers: Infinity War"
+    provider: "tmdb"
+    external_id: "299536"
+  - id: "avengers-endgame"
+    kind: "movie"
+    title: "Avengers: Endgame"
+    provider: "tmdb"
+    external_id: "299534"
+  - id: "wandavision-s01e01"
+    kind: "episode"
+    title: "WandaVision - S01E01: Filmed Before a Live Studio Audience"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 1
+  - id: "wandavision-s01e02"
+    kind: "episode"
+    title: "WandaVision - S01E02: Don't Touch That Dial"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 2
+  - id: "wandavision-s01e03"
+    kind: "episode"
+    title: "WandaVision - S01E03: Now in Color"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 3
+  - id: "wandavision-s01e04"
+    kind: "episode"
+    title: "WandaVision - S01E04: We Interrupt This Program"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 4
+  - id: "wandavision-s01e05"
+    kind: "episode"
+    title: "WandaVision - S01E05: On a Very Special Episode…"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 5
+  - id: "wandavision-s01e06"
+    kind: "episode"
+    title: "WandaVision - S01E06: All-New Halloween Spooktacular!"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 6
+  - id: "wandavision-s01e07"
+    kind: "episode"
+    title: "WandaVision - S01E07: Breaking the Fourth Wall"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 7
+  - id: "wandavision-s01e08"
+    kind: "episode"
+    title: "WandaVision - S01E08: Previously On"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 8
+  - id: "wandavision-s01e09"
+    kind: "episode"
+    title: "WandaVision - S01E09: The Series Finale"
+    provider: "tvdb"
+    external_id: "362392"
+    season: 1
+    episode: 9
+  - id: "shang-chi"
+    kind: "movie"
+    title: "Shang-Chi and the Legend of the Ten Rings"
+    provider: "tmdb"
+    external_id: "566525"
+  - id: "the-falcon-and-the-winter-soldier-s01e01"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E01: New World Order"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 1
+  - id: "the-falcon-and-the-winter-soldier-s01e02"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E02: The Star Spangled Man"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 2
+  - id: "the-falcon-and-the-winter-soldier-s01e03"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E03: Power Broker"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 3
+  - id: "the-falcon-and-the-winter-soldier-s01e04"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E04: The Whole World Is Watching"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 4
+  - id: "the-falcon-and-the-winter-soldier-s01e05"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E05: Truth"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 5
+  - id: "the-falcon-and-the-winter-soldier-s01e06"
+    kind: "episode"
+    title: "The Falcon and the Winter Soldier - S01E06: One World, One People"
+    provider: "tvdb"
+    external_id: "362496"
+    season: 1
+    episode: 6
+  - id: "spider-man-far-home"
+    kind: "movie"
+    title: "Spider-Man: Far From Home"
+    provider: "tmdb"
+    external_id: "429617"
+  - id: "eternals"
+    kind: "movie"
+    title: "Eternals"
+    provider: "tmdb"
+    external_id: "524434"
+  - id: "spider-man-no-way-home"
+    kind: "movie"
+    title: "Spider-Man: No Way Home"
+    provider: "tmdb"
+    external_id: "634649"
+  - id: "doctor-strange-multiverse-madness"
+    kind: "movie"
+    title: "Doctor Strange in the Multiverse of Madness"
+    provider: "tmdb"
+    external_id: "453395"
+  - id: "hawkeye-s01e01"
+    kind: "episode"
+    title: "Hawkeye - S01E01: Never Meet Your Heroes"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 1
+  - id: "hawkeye-s01e02"
+    kind: "episode"
+    title: "Hawkeye - S01E02: Hide and Seek"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 2
+  - id: "hawkeye-s01e03"
+    kind: "episode"
+    title: "Hawkeye - S01E03: Echoes"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 3
+  - id: "hawkeye-s01e04"
+    kind: "episode"
+    title: "Hawkeye - S01E04: Partners, Am I Right?"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 4
+  - id: "hawkeye-s01e05"
+    kind: "episode"
+    title: "Hawkeye - S01E05: Ronin"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 5
+  - id: "hawkeye-s01e06"
+    kind: "episode"
+    title: "Hawkeye - S01E06: So This Is Christmas?"
+    provider: "tvdb"
+    external_id: "367146"
+    season: 1
+    episode: 6
+  - id: "moon-knight-s01e01"
+    kind: "episode"
+    title: "Moon Knight - S01E01: The Goldfish Problem"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 1
+  - id: "moon-knight-s01e02"
+    kind: "episode"
+    title: "Moon Knight - S01E02: Summon the Suit"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 2
+  - id: "moon-knight-s01e03"
+    kind: "episode"
+    title: "Moon Knight - S01E03: The Friendly Type"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 3
+  - id: "moon-knight-s01e04"
+    kind: "episode"
+    title: "Moon Knight - S01E04: The Tomb"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 4
+  - id: "moon-knight-s01e05"
+    kind: "episode"
+    title: "Moon Knight - S01E05: Asylum"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 5
+  - id: "moon-knight-s01e06"
+    kind: "episode"
+    title: "Moon Knight - S01E06: Gods and Monsters"
+    provider: "tvdb"
+    external_id: "368611"
+    season: 1
+    episode: 6
+  - id: "black-panther-wakanda-forever"
+    kind: "movie"
+    title: "Black Panther: Wakanda Forever"
+    provider: "tmdb"
+    external_id: "505642"
+  - id: "echo-s01e01"
+    kind: "episode"
+    title: "Echo - S01E01: Chafa"
+    provider: "tvdb"
+    external_id: "412431"
+    season: 1
+    episode: 1
+  - id: "echo-s01e02"
+    kind: "episode"
+    title: "Echo - S01E02: Lowak"
+    provider: "tvdb"
+    external_id: "412431"
+    season: 1
+    episode: 2
+  - id: "echo-s01e03"
+    kind: "episode"
+    title: "Echo - S01E03: Tuklo"
+    provider: "tvdb"
+    external_id: "412431"
+    season: 1
+    episode: 3
+  - id: "echo-s01e04"
+    kind: "episode"
+    title: "Echo - S01E04: Taloa"
+    provider: "tvdb"
+    external_id: "412431"
+    season: 1
+    episode: 4
+  - id: "echo-s01e05"
+    kind: "episode"
+    title: "Echo - S01E05: Maya"
+    provider: "tvdb"
+    external_id: "412431"
+    season: 1
+    episode: 5
+  - id: "she-hulk-attorney-at-law-s01e01"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E01: A Normal Amount of Rage"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 1
+  - id: "she-hulk-attorney-at-law-s01e02"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E02: Superhuman Law"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 2
+  - id: "she-hulk-attorney-at-law-s01e03"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E03: The People vs. Emil Blonsky"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 3
+  - id: "she-hulk-attorney-at-law-s01e04"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E04: Is This Not Real Magic?"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 4
+  - id: "she-hulk-attorney-at-law-s01e05"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E05: Mean, Green, and Straight Poured into These Jeans"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 5
+  - id: "she-hulk-attorney-at-law-s01e06"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E06: Just Jen"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 6
+  - id: "she-hulk-attorney-at-law-s01e07"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E07: The Retreat"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 7
+  - id: "she-hulk-attorney-at-law-s01e08"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E08: Ribbit and Rip it"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 8
+  - id: "she-hulk-attorney-at-law-s01e09"
+    kind: "episode"
+    title: "She-Hulk: Attorney at Law - S01E09: Whose Show Is This?"
+    provider: "tvdb"
+    external_id: "368613"
+    season: 1
+    episode: 9
+  - id: "ms-marvel-s01e01"
+    kind: "episode"
+    title: "Ms. Marvel - S01E01: Generation Why"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 1
+  - id: "ms-marvel-s01e02"
+    kind: "episode"
+    title: "Ms. Marvel - S01E02: Crushed"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 2
+  - id: "ms-marvel-s01e03"
+    kind: "episode"
+    title: "Ms. Marvel - S01E03: Destined"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 3
+  - id: "ms-marvel-s01e04"
+    kind: "episode"
+    title: "Ms. Marvel - S01E04: Seeing Red"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 4
+  - id: "ms-marvel-s01e05"
+    kind: "episode"
+    title: "Ms. Marvel - S01E05: Time and Again"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 5
+  - id: "ms-marvel-s01e06"
+    kind: "episode"
+    title: "Ms. Marvel - S01E06: No Normal"
+    provider: "tvdb"
+    external_id: "368612"
+    season: 1
+    episode: 6
+  - id: "thor-love-thunder"
+    kind: "movie"
+    title: "Thor: Love and Thunder"
+    provider: "tmdb"
+    external_id: "616037"
+  - id: "ironheart-s01e01"
+    kind: "episode"
+    title: "Ironheart - S01E01: Take Me Home"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 1
+  - id: "ironheart-s01e02"
+    kind: "episode"
+    title: "Ironheart - S01E02: Will the Real Natalie Please Stand Up?"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 2
+  - id: "ironheart-s01e03"
+    kind: "episode"
+    title: "Ironheart - S01E03: We in Danger, Girl"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 3
+  - id: "ironheart-s01e04"
+    kind: "episode"
+    title: "Ironheart - S01E04: Bad Magic"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 4
+  - id: "ironheart-s01e05"
+    kind: "episode"
+    title: "Ironheart - S01E05: Karma's a Glitch"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 5
+  - id: "ironheart-s01e06"
+    kind: "episode"
+    title: "Ironheart - S01E06: The Past Is the Past"
+    provider: "tvdb"
+    external_id: "393204"
+    season: 1
+    episode: 6
+  - id: "werewolf-by-night"
+    kind: "movie"
+    title: "Werewolf by Night"
+    provider: "tmdb"
+    external_id: "894205"
+  - id: "guardians-holiday-special"
+    kind: "movie"
+    title: "The Guardians of the Galaxy Holiday Special"
+    provider: "tmdb"
+    external_id: "774752"
+  - id: "ant-man-wasp-quantumania"
+    kind: "movie"
+    title: "Ant-Man and the Wasp: Quantumania"
+    provider: "tmdb"
+    external_id: "640146"
+  - id: "guardians-galaxy-3"
+    kind: "movie"
+    title: "Guardians of the Galaxy Vol. 3"
+    provider: "tmdb"
+    external_id: "447365"
+  - id: "secret-invasion-s01e01"
+    kind: "episode"
+    title: "Secret Invasion - S01E01: Resurrection"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 1
+  - id: "secret-invasion-s01e02"
+    kind: "episode"
+    title: "Secret Invasion - S01E02: Promises"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 2
+  - id: "secret-invasion-s01e03"
+    kind: "episode"
+    title: "Secret Invasion - S01E03: Betrayed"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 3
+  - id: "secret-invasion-s01e04"
+    kind: "episode"
+    title: "Secret Invasion - S01E04: Beloved"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 4
+  - id: "secret-invasion-s01e05"
+    kind: "episode"
+    title: "Secret Invasion - S01E05: Harvest"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 5
+  - id: "secret-invasion-s01e06"
+    kind: "episode"
+    title: "Secret Invasion - S01E06: Home"
+    provider: "tvdb"
+    external_id: "393203"
+    season: 1
+    episode: 6
+  - id: "marvels"
+    kind: "movie"
+    title: "The Marvels"
+    provider: "tmdb"
+    external_id: "609681"
+  - id: "agatha-all-along-s01e01"
+    kind: "episode"
+    title: "Agatha All Along - S01E01: Seekest Thou the Road"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 1
+  - id: "agatha-all-along-s01e02"
+    kind: "episode"
+    title: "Agatha All Along - S01E02: Circle Sewn with Fate Unlock Thy Hidden Gate"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 2
+  - id: "agatha-all-along-s01e03"
+    kind: "episode"
+    title: "Agatha All Along - S01E03: Through Many Miles of Tricks and Trials"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 3
+  - id: "agatha-all-along-s01e04"
+    kind: "episode"
+    title: "Agatha All Along - S01E04: If I Can't Reach You Let My Song Teach You"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 4
+  - id: "agatha-all-along-s01e05"
+    kind: "episode"
+    title: "Agatha All Along - S01E05: Darkest Hour, Wake Thy Power"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 5
+  - id: "agatha-all-along-s01e06"
+    kind: "episode"
+    title: "Agatha All Along - S01E06: Familiar by Thy Side"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 6
+  - id: "agatha-all-along-s01e07"
+    kind: "episode"
+    title: "Agatha All Along - S01E07: Death's Hand in Mine"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 7
+  - id: "agatha-all-along-s01e08"
+    kind: "episode"
+    title: "Agatha All Along - S01E08: Follow Me My Friend To Glory at the End"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 8
+  - id: "agatha-all-along-s01e09"
+    kind: "episode"
+    title: "Agatha All Along - S01E09: Maiden Mother Crone"
+    provider: "tvdb"
+    external_id: "412429"
+    season: 1
+    episode: 9
+  - id: "daredevil-born-again-s01e01"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E01: Heaven’s Half Hour"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 1
+  - id: "daredevil-born-again-s01e02"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E02: Optics"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 2
+  - id: "daredevil-born-again-s01e03"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E03: The Hollow of His Hand"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 3
+  - id: "daredevil-born-again-s01e04"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E04: Sic Semper Systema"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 4
+  - id: "daredevil-born-again-s01e05"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E05: With Interest"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 5
+  - id: "daredevil-born-again-s01e06"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E06: Excessive Force"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 6
+  - id: "daredevil-born-again-s01e07"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E07: Art for Art’s Sake"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 7
+  - id: "daredevil-born-again-s01e08"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E08: Isle of Joy"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 8
+  - id: "daredevil-born-again-s01e09"
+    kind: "episode"
+    title: "Daredevil: Born Again - S01E09: Straight to Hell"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 1
+    episode: 9
+  - id: "captain-america-brave-world"
+    kind: "movie"
+    title: "Captain America: Brave New World"
+    provider: "tmdb"
+    external_id: "822119"
+  - id: "thunderbolts"
+    kind: "movie"
+    title: "Thunderbolts*"
+    provider: "tmdb"
+    external_id: "986056"
+  - id: "wonder-man-s01e01"
+    kind: "episode"
+    title: "Wonder Man - S01E01: Matinee"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 1
+  - id: "wonder-man-s01e02"
+    kind: "episode"
+    title: "Wonder Man - S01E02: Self-Tape"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 2
+  - id: "wonder-man-s01e03"
+    kind: "episode"
+    title: "Wonder Man - S01E03: Pacoima"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 3
+  - id: "wonder-man-s01e04"
+    kind: "episode"
+    title: "Wonder Man - S01E04: Doorman"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 4
+  - id: "wonder-man-s01e05"
+    kind: "episode"
+    title: "Wonder Man - S01E05: Found Footage"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 5
+  - id: "wonder-man-s01e06"
+    kind: "episode"
+    title: "Wonder Man - S01E06: Callback"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 6
+  - id: "wonder-man-s01e07"
+    kind: "episode"
+    title: "Wonder Man - S01E07: Kathy Friedman"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 7
+  - id: "wonder-man-s01e08"
+    kind: "episode"
+    title: "Wonder Man - S01E08: Yucca Valley"
+    provider: "tvdb"
+    external_id: "428629"
+    season: 1
+    episode: 8
+  - id: "daredevil-born-again-s02e01"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E01: The Northern Star"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 1
+  - id: "daredevil-born-again-s02e02"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E02: Shoot the Moon"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 2
+  - id: "daredevil-born-again-s02e03"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E03: The Scales & the Sword"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 3
+  - id: "daredevil-born-again-s02e04"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E04: Gloves Off"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 4
+  - id: "daredevil-born-again-s02e05"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E05: The Grand Design"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 5
+  - id: "daredevil-born-again-s02e06"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E06: Requiem"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 6
+  - id: "daredevil-born-again-s02e07"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E07: The Hateful Darkness"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 7
+  - id: "daredevil-born-again-s02e08"
+    kind: "episode"
+    title: "Daredevil: Born Again - S02E08: The Southern Cross"
+    provider: "tvdb"
+    external_id: "422712"
+    season: 2
+    episode: 8
+  - id: "punisher-one-last-kill"
+    kind: "movie"
+    title: "The Punisher: One Last Kill"
+    provider: "imdb"
+    external_id: "tt36042156"
+  - id: "spider-man-brand-new-day"
+    kind: "movie"
+    title: "Spider-Man: Brand New Day"
+    provider: "imdb"
+    external_id: "tt22084616"
+  - id: "visionquest-s01e01"
+    kind: "episode"
+    title: "VisionQuest - S01E01: No Strings"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 1
+  - id: "visionquest-s01e02"
+    kind: "episode"
+    title: "VisionQuest - S01E02: Theseus"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 2
+  - id: "visionquest-s01e03"
+    kind: "episode"
+    title: "VisionQuest - S01E03: Reboot"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 3
+  - id: "visionquest-s01e04"
+    kind: "episode"
+    title: "VisionQuest - S01E04: Malware"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 4
+  - id: "visionquest-s01e05"
+    kind: "episode"
+    title: "VisionQuest - S01E05: Firewall"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 5
+  - id: "visionquest-s01e06"
+    kind: "episode"
+    title: "VisionQuest - S01E06: Deadlock"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 6
+  - id: "visionquest-s01e07"
+    kind: "episode"
+    title: "VisionQuest - S01E07: Immolation"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 7
+  - id: "visionquest-s01e08"
+    kind: "episode"
+    title: "VisionQuest - S01E08: Forever"
+    provider: "tvdb"
+    external_id: "426606"
+    season: 1
+    episode: 8

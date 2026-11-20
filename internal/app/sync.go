@@ -172,12 +172,19 @@ func (a *App) createDestination(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid interval", 400)
 		return
 	}
-	if _, err = a.store.CreateDestination(r.Context(), r.PathValue("id"), conn.ID, r.PostForm.Get("policy"), interval); err != nil {
+	destination, err := a.store.CreateDestinationNamed(r.Context(), r.PathValue("id"), conn.ID, r.PostForm.Get("policy"), interval, r.PostForm.Get("playlist"))
+	if err != nil {
 		a.collectionError(w, err)
 		return
 	}
+	if r.PostForm.Get("sync") == "yes" {
+		if _, err = a.store.QueueJob(r.Context(), "sync", destination); err != nil {
+			a.fail(w, "queue sync failed")
+			return
+		}
+	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/collections/"+r.PathValue("id"), 303)
+	http.Redirect(w, r, "/collections/"+r.PathValue("id")+"?tab=publishing", 303)
 }
 func (a *App) queueSync(w http.ResponseWriter, r *http.Request) {
 	d, err := a.store.Destination(r.Context(), r.PathValue("destination"))
@@ -209,7 +216,7 @@ func (a *App) destinationPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/collections/"+d.CollectionID, 303)
+	http.Redirect(w, r, "/collections/"+d.CollectionID+"?tab=publishing", 303)
 }
 func (a *App) recreateDestination(w http.ResponseWriter, r *http.Request) {
 	d, err := a.store.Destination(r.Context(), r.PathValue("destination"))
@@ -226,7 +233,7 @@ func (a *App) recreateDestination(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/collections/"+d.CollectionID, 303)
+	http.Redirect(w, r, "/collections/"+d.CollectionID+"?tab=publishing", 303)
 }
 func (a *App) approveSync(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("run"), 10, 64)

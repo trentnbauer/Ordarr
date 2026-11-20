@@ -47,6 +47,9 @@ func Resolve(entry Identity, items []plex.IdentifiedMedia, manual string) Result
 			candidates = append(candidates, item)
 		}
 	}
+	return decide(candidates, unknown, manual)
+}
+func decide(candidates []plex.IdentifiedMedia, unknown bool, manual string) Result {
 	if len(candidates) == 0 {
 		if manual == "" && unknown {
 			return Result{State: "unmatched", Reason: "Provider identity is unavailable for possible media; resolve explicitly."}

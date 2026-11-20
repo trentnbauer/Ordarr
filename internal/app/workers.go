@@ -212,14 +212,6 @@ func sameLibraries(a, b []plex.Library) bool {
 	}
 	return true
 }
-func (a *App) jobsPage(w http.ResponseWriter, r *http.Request) {
-	jobs, err := a.store.RecentJobs(r.Context())
-	if err != nil {
-		a.fail(w, "job history failed")
-		return
-	}
-	a.render(w, r, 200, page{Title: "Activity", Mode: "jobs", Jobs: jobs})
-}
 func (a *App) queueScan(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.store.PlexConnection(r.Context(), r.PathValue("id")); err != nil {
 		a.collectionError(w, err)

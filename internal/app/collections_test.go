@@ -24,6 +24,11 @@ func TestCollectionHTTPWorkflow(t *testing.T) {
 		return w.Header().Get("Location")
 	}
 	path := post("/collections", url.Values{"title": {"<script>Watch order</script>"}, "description": {"Description"}}, 303)
+	// A new empty collection opens with its add-entries panel.
+	if !strings.HasSuffix(path, "?add=1") {
+		t.Fatal("new collection did not open the add panel", path)
+	}
+	path = strings.TrimSuffix(path, "?add=1")
 	id := strings.TrimPrefix(path, "/collections/")
 	rev := func() string {
 		c, err := a.store.Collection(context.Background(), id)

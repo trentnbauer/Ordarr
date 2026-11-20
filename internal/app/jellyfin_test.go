@@ -104,7 +104,7 @@ func TestJellyfinConnectionScanMatchingFailureAndLocalRemoval(t *testing.T) {
 	c, _ := a.store.Collection(ctx, id)
 	path := "/collections/" + id + "/jellyfin/" + conn.ID
 	w := request(h, "GET", path, nil, session, csrf)
-	if w.Code != 200 || strings.Count(w.Body.String(), `class="badge">matched`) != 3 || !strings.Contains(w.Body.String(), "Playback has not been verified") {
+	if w.Code != 200 || strings.Count(w.Body.String(), `data-state="matched"`) != 3 || !strings.Contains(w.Body.String(), "Playback has not been verified") {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	post(path, url.Values{"revision": {strconv.Itoa(c.Revision)}, "entry_id": {c.Entries[0].ID}, "item_id": {jfEpisode}}, 400)

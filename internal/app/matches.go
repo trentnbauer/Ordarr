@@ -1,8 +1,6 @@
 package app
 
 import (
-	"database/sql"
-	"errors"
 	"github.com/trentnbauer/Ordarr/internal/matching"
 	"github.com/trentnbauer/Ordarr/internal/plex"
 	"github.com/trentnbauer/Ordarr/internal/store"
@@ -29,32 +27,11 @@ func (a *App) matchesPage(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	conn, err := a.store.PlexConnection(r.Context(), r.PathValue("connection"))
-	if err != nil {
+	if _, err = a.store.PlexConnection(r.Context(), r.PathValue("connection")); err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	view := &matchView{Collection: c, Connection: plexPublic(conn)}
-	items, scanned, err := a.store.Catalogue(r.Context(), conn.ID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, store.ErrConflict) {
-		a.fail(w, "catalogue lookup failed")
-		return
-	}
-	if err == nil {
-		view.Ready = true
-		view.Catalogue = items
-		view.ScannedAt = scanned
-		overrides, e := a.store.ManualMatches(r.Context(), conn.ID, c)
-		if e != nil {
-			a.fail(w, "manual matches failed")
-			return
-		}
-		for _, entry := range c.Entries {
-			identity := matching.Identity{Kind: entry.Kind, Provider: entry.Provider, ExternalID: entry.ExternalID, Season: entry.Season, Episode: entry.Episode}
-			view.Entries = append(view.Entries, matchedEntry{Entry: entry, Result: matching.Resolve(identity, items, overrides[entry.ID])})
-		}
-	}
-	a.render(w, r, 200, page{Title: "Match " + c.Title, Mode: "matches", MatchView: view})
+	a.renderCollection(w, r, 200, c, "missing", r.PathValue("connection"), nil)
 }
 func (a *App) manualMatch(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.Collection(r.Context(), r.PathValue("id"))
@@ -100,5 +77,6 @@ func (a *App) manualMatch(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, "manual match update failed")
 		return
 	}
+	a.avail.bump()
 	http.Redirect(w, r, "/collections/"+c.ID+"/matches/"+conn, 303)
 }

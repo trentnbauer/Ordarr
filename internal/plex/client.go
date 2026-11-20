@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,11 @@ func blockedIP(ip netip.Addr) bool {
 	ip = ip.Unmap()
 	return !ip.IsValid() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || (ip.String() == "255.255.255.255" || ip.String() == "fd00:ec2::254") || netip.MustParsePrefix("100.100.100.200/32").Contains(ip)
 }
+
+// ServiceOrigin matches a normalized service origin: scheme, host and optional
+// port only. Clients check it immediately before building a request URL.
+var ServiceOrigin = regexp.MustCompile(`^https?://(?:[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?)*|\[[0-9a-f:.]+\])(?::[0-9]{1,5})?$`)
+
 func NormalizeURL(raw string, allowHTTP bool) (string, error) {
 	if len(raw) > 2048 {
 		return "", ErrURL

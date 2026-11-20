@@ -23,7 +23,7 @@ type sourceView struct {
 }
 
 func (a *App) portablePage(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, 200, page{Title: "Import or subscribe", Mode: "portable"})
+	a.renderAdd(w, r, 200, "paste", "", nil)
 }
 func (a *App) importFile(w http.ResponseWriter, r *http.Request) {
 	data := []byte(r.PostForm.Get("document"))
@@ -100,14 +100,7 @@ func (a *App) sourcePage(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	current, _ := portable.Encode(portable.FromCollection(c), "yaml")
-	if len(sub.LastValid) > 0 {
-		current = sub.LastValid
-	}
-	before, _ := portable.Decode(sub.LastValid)
-	after, _ := portable.Decode(sub.Pending)
-	changes := portable.Diff(before, after)
-	a.render(w, r, 200, page{Title: "Subscription updates", Mode: "source", Source: &sourceView{Subscription: sub, Current: string(current), Proposed: string(sub.Pending), Changes: changes, PendingHash: fmt.Sprintf("%x", sha256.Sum256(sub.Pending))}})
+	a.renderCollection(w, r, 200, c, "source", "", nil)
 }
 func (a *App) updateSource(w http.ResponseWriter, r *http.Request) {
 	sub, err := a.store.CollectionSubscription(r.Context(), r.PathValue("id"))
@@ -145,6 +138,23 @@ func (a *App) updateSource(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		err = a.store.ApproveSource(r.Context(), sub, c)
+	case "skip":
+		revision, _ := strconv.Atoi(r.PostForm.Get("revision"))
+		if revision != sub.Revision || r.PostForm.Get("pending_hash") != fmt.Sprintf("%x", sha256.Sum256(sub.Pending)) {
+			err = store.ErrConflict
+			break
+		}
+		err = a.store.SkipSource(r.Context(), sub)
+	case "unfollow":
+		revision, _ := strconv.Atoi(r.PostForm.Get("revision"))
+		if revision != sub.Revision {
+			err = store.ErrConflict
+			break
+		}
+		if err = a.store.Unsubscribe(r.Context(), sub); err == nil {
+			http.Redirect(w, r, "/collections/"+sub.CollectionID+"?tab=settings", 303)
+			return
+		}
 	default:
 		err = store.ErrInvalid
 	}
@@ -180,7 +190,7 @@ func (a *App) fetchSource(ctx context.Context, j store.Job) (ret error) {
 			a.store.SourceFailure(cleanup, sub)
 		}
 	}()
-	res, err := subscription.Fetch(ctx, sub.URL, sub.ETag, sub.Modified)
+	res, err := fetchURL(ctx, sub.URL, sub.ETag, sub.Modified)
 	if err != nil {
 		return err
 	}

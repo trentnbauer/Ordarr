@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -50,9 +51,15 @@ func publicIP(ip netip.Addr) bool {
 	}
 	return true
 }
+
+// publicHTTPS matches an HTTPS URL with a plain DNS host (or IPv4 address),
+// the default port, and no credentials or fragment. ValidateURL and the
+// dialer still apply; this is a final syntactic gate before the request.
+var publicHTTPS = regexp.MustCompile(`^https://[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::443)?(?:[/?][^\s#@]*)?$`)
+
 func Fetch(ctx context.Context, raw, etag, modified string) (Result, error) {
 	var out Result
-	if ValidateURL(raw) != nil {
+	if ValidateURL(raw) != nil || !publicHTTPS.MatchString(raw) {
 		return out, ErrFetch
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, DisableKeepAlives: true, ResponseHeaderTimeout: 10 * time.Second, MaxResponseHeaderBytes: 32 << 10}

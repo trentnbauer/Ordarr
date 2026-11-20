@@ -65,6 +65,8 @@ jobs:
           load: ${{ inputs.release-version == '' }}
           tags: ${{ inputs.release-version == '' && 'ordarr:ci' || '' }}
           outputs: ${{ inputs.release-version != '' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || '' }}
+          build-args: |
+            VERSION=${{ inputs.release-version || 'dev' }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ inputs.release-version || 'dev' }}

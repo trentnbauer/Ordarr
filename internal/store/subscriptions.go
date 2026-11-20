@@ -16,11 +16,12 @@ type Subscription struct {
 	Message                       string
 	CheckedAt                     int64
 	IntervalMinutes               int
+	SkippedHash                   string
 }
 
 func scanSubscription(row interface{ Scan(...any) error }) (Subscription, error) {
 	var s Subscription
-	err := row.Scan(&s.ID, &s.CollectionID, &s.URL, &s.Policy, &s.Revision, &s.ETag, &s.Modified, &s.LastValid, &s.Pending, &s.NextRun, &s.Failures, &s.Message, &s.CheckedAt, &s.IntervalMinutes)
+	err := row.Scan(&s.ID, &s.CollectionID, &s.URL, &s.Policy, &s.Revision, &s.ETag, &s.Modified, &s.LastValid, &s.Pending, &s.NextRun, &s.Failures, &s.Message, &s.CheckedAt, &s.IntervalMinutes, &s.SkippedHash)
 	return s, err
 }
 func (s *Store) Subscription(ctx context.Context, id string) (Subscription, error) {
@@ -101,7 +102,7 @@ func (s *Store) ReceiveSource(ctx context.Context, sub Subscription, data []byte
 	if current.Revision != sub.Revision || current.Policy == "paused" {
 		return ErrConflict
 	}
-	if bytes.Equal(data, current.LastValid) {
+	if bytes.Equal(data, current.LastValid) || current.SkippedHash != "" && current.SkippedHash == contentHash(data) {
 		_, err = tx.ExecContext(ctx, "UPDATE subscriptions SET pending=NULL,etag=?,modified=?,failures=0,checked_at=?,message='Source unchanged.' WHERE id=?", etag, modified, time.Now().Unix(), sub.ID)
 		if err != nil {
 			return err

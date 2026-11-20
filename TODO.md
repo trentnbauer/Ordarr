@@ -89,7 +89,9 @@ Check items only when implemented and validated. Complete the **Plex MVP** befor
 ## Phase 9 — Further enhancements
 - [ ] Optional Emby/other media-server adapters.
 - [ ] AI integration for generating collection files.
-- [ ] Community collection catalogue and discovery.
+- [ ] Community collection catalogue and discovery. (Browsing, search and one-step add from
+      `trentnbauer/OrdarrCollections` are implemented and fixture-tested; the live GitHub
+      fetch has not been verified. Usage counts and authors are not shown.)
 - [ ] Per-user watch progress and next-unwatched entry.
 - [ ] Advanced subscription overrides and conflict handling.
 - [ ] Consider multi-user management after single-admin MVP.

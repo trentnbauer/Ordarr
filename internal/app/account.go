@@ -24,6 +24,7 @@ type authView struct{ ID, URL, ExpiresAt string }
 type accountServerView struct {
 	MachineID, Name string
 	Owned           bool
+	Connected       string // name of the existing Ordarr connection, if any
 	Connections     []plex.ResourceConnection
 }
 type attemptSecret struct {
@@ -64,6 +65,10 @@ func (a *App) accountProjection(ctx context.Context) (*accountView, []accountSer
 	view := &accountView{UserID: account.UserID, Username: account.Username, FriendlyName: account.FriendlyName, Restricted: account.Restricted, Revision: account.Revision, ExpiresAt: time.Unix(account.ExpiresAt, 0).UTC().Format(time.RFC3339), CheckedAt: time.Unix(account.CheckedAt, 0).UTC().Format(time.RFC3339), Expired: account.ExpiresAt <= time.Now().Unix()}
 	servers := []accountServerView{}
 	for _, resource := range credentials.Resources {
+		// Issue #6: only servers owned by the signed-in account can be connected.
+		if !resource.Owned {
+			continue
+		}
 		servers = append(servers, accountServerView{MachineID: resource.MachineID, Name: resource.Name, Owned: resource.Owned, Connections: resource.Connections})
 	}
 	return view, servers, nil
@@ -335,6 +340,9 @@ func (a *App) accountConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resource, token, err := findResource(result, r.PostForm.Get("resource_id"), r.PostForm.Get("uri"))
+	if err == nil && !resource.Owned {
+		err = fmt.Errorf("%w: Only servers owned by this Plex account can be connected.", store.ErrInvalid)
+	}
 	if err != nil {
 		a.accountError(w, r, err)
 		return

@@ -70,3 +70,39 @@ if (list) {
 if (location.hash.startsWith('#entry-')) {
   document.getElementById(location.hash.slice(1))?.focus();
 }
+
+// Bulk bar: show how many entries are selected, and confirm removals.
+const bulk = document.querySelector('#bulk-actions');
+if (bulk) {
+  const count = document.querySelector('#selected-count');
+  const boxes = () => [...document.querySelectorAll('input[form="bulk-actions"][name="entry_id"]')];
+  const idle = count.textContent;
+  const update = () => {
+    const n = boxes().filter(box => box.checked).length;
+    count.textContent = n ? `${n} selected` : idle;
+  };
+  document.addEventListener('change', event => {
+    if (event.target.matches('input[form="bulk-actions"]')) update();
+  });
+  bulk.addEventListener('submit', event => {
+    const action = event.submitter && event.submitter.value;
+    if (action !== 'remove') return;
+    const n = boxes().filter(box => box.checked).length;
+    const confirmBox = bulk.querySelector('input[name="confirm_remove"]');
+    if (n && !confirmBox.checked) {
+      if (confirm(`Remove ${n} ${n === 1 ? 'entry' : 'entries'} from this collection?`)) confirmBox.checked = true;
+      else event.preventDefault();
+    }
+  });
+  update();
+}
+
+// The add-collection modal closes with Escape, like any dialog.
+const modal = document.querySelector('#add-modal');
+if (modal) {
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') modal.querySelector('[data-close]')?.click();
+  });
+  const first = modal.querySelector('.modal-bar input:not([type=hidden])') || modal.querySelector('.modal-body input:not([type=hidden]),.modal-body textarea');
+  if (first && !location.hash) first.focus();
+}
