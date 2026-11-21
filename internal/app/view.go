@@ -23,6 +23,8 @@ type navView struct {
 	Collections, Input int    // Input: things waiting on the administrator
 	Connections        string // short state of Plex / Sonarr / Radarr
 	ConnWarn           bool
+	Busy               bool   // a scan, sync or request is running or waiting
+	BusyLabel          string // what it is doing, for the spinner next to Activity
 }
 
 // overview is the cross-collection state the shell and lists are drawn from.
@@ -142,6 +144,9 @@ func (a *App) navFor(ctx context.Context, section string, o *overview, values ma
 	}
 	n.Username = name
 	n.Connections, n.ConnWarn = connectionsSummary(o)
+	if n.Busy, n.BusyLabel, err = a.busy(ctx); err != nil {
+		return nil, err
+	}
 	count, err := a.inputCount(ctx, o, values)
 	if err != nil {
 		return nil, err
@@ -378,4 +383,29 @@ func section(mode string) string {
 		return "settings"
 	}
 	return "collections"
+}
+
+// busy words what Ordarr is doing right now, e.g. "Library scan running" or "3 jobs waiting".
+func (a *App) busy(ctx context.Context) (bool, string, error) {
+	running, queued, err := a.store.ActiveJobs(ctx)
+	if err != nil {
+		return false, "", err
+	}
+	name := func(kind string) string {
+		if v := jobKinds[kind]; v != "" {
+			return v
+		}
+		return kind
+	}
+	switch {
+	case len(running) > 0:
+		label := name(running[0]) + " running"
+		if more := len(running) - 1 + len(queued); more > 0 {
+			label += " · " + plural(more, "more waiting", "more waiting")
+		}
+		return true, label, nil
+	case len(queued) > 0:
+		return true, name(queued[0]) + " waiting", nil
+	}
+	return false, "", nil
 }

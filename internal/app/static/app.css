@@ -439,3 +439,8 @@ fieldset.field>legend{margin-bottom:4px}
 .connect-menu .menu{position:absolute;right:0;top:100%;z-index:5;background:var(--color-surface,#fff);border:var(--hair,1px solid #ccc);min-width:160px;display:flex;flex-direction:column}
 .connect-menu .menu a{padding:6px 10px;text-decoration:none;color:var(--color-text)}
 .connect-menu .menu a:hover{background:var(--color-neutral-200)}
+
+.spinner{display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ordarr-spin .8s linear infinite;vertical-align:middle}
+.spinner[hidden]{display:none}
+@keyframes ordarr-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none;border-right-color:currentColor;opacity:.55}}

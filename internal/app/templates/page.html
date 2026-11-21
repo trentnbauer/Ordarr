@@ -1,4 +1,4 @@
-{{define "page.html"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Ordarr</title><link rel="preload" href="/static/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/static/app.css"><script src="/static/editor.js" defer></script></head><body>
+{{define "page.html"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Ordarr</title><link rel="preload" href="/static/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/static/app.css"><script src="/static/editor.js" defer></script><script src="/static/busy.js" defer></script></head><body>
 <a class="skip" href="#main">Skip to content</a>
 {{if or (eq .Mode "setup") (eq .Mode "login")}}{{template "auth" .}}{{else}}<div class="shell">{{template "sidebar" .}}<main id="main" tabindex="-1">
 {{if eq .Mode "dashboard"}}{{template "collections" .}}
@@ -22,7 +22,7 @@
 <div class="side-group"><div class="side-label">Library</div>
 <a class="side-link" href="/" {{if eq $n.Section "collections"}}aria-current="page"{{end}}><span class="label-text">Collections</span><span class="side-meta">{{$n.Collections}}</span></a>
 <a class="side-link" href="/needs-input" {{if eq $n.Section "input"}}aria-current="page"{{end}}><span class="label-text">Needs your input</span>{{if $n.Input}}<span class="side-meta warn">{{$n.Input}}</span>{{end}}</a>
-<a class="side-link" href="/jobs" {{if eq $n.Section "activity"}}aria-current="page"{{end}}><span class="label-text">Activity</span></a></div>
+<a class="side-link" href="/jobs" {{if eq $n.Section "activity"}}aria-current="page"{{end}}><span class="label-text">Activity</span><span class="side-meta"><span class="spinner" id="activity-spinner" role="status" {{if not $n.Busy}}hidden{{end}} title="{{$n.BusyLabel}}"><span class="visually-hidden">{{$n.BusyLabel}}</span></span></span></a></div>
 <div class="side-group"><div class="side-label">Setup</div>
 <a class="side-link" href="/connections" {{if eq $n.Section "connections"}}aria-current="page"{{end}}><span class="label-text">Connections</span><span class="side-meta{{if $n.ConnWarn}} warn{{end}}">{{$n.Connections}}</span></a>
 <a class="side-link" href="/settings" {{if eq $n.Section "settings"}}aria-current="page"{{end}}><span class="label-text">Settings</span></a></div>
