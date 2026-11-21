@@ -126,10 +126,11 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	id, ok := providerNumber(c, entry)
-	if !ok || r.PostForm.Get("confirm") != "yes" {
-		http.Error(w, "Confirm an exact TMDB movie or TVDB series and the whole-media request effect", 400)
+	if !ok {
+		http.Error(w, "Choose an exact TMDB movie or TVDB episode entry", 400)
 		return
 	}
+	back := "/collections/" + collection.ID + "#entry-" + entry.ID
 	conn, err := a.arrAccess(c)
 	if err != nil {
 		a.fail(w, "credential access failed")
@@ -139,15 +140,37 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	item, err := arr.New().Lookup(ctx, conn, id)
 	if err != nil {
-		http.Error(w, arr.ErrIdentity.Error(), 400)
+		// Shown on the row as "Not found in any downloader"; Request now retries.
+		a.store.RecordFailedRequest(r.Context(), c, id, entry.Title, "Lookup found no exact match.")
+		http.Redirect(w, r, back, 303)
 		return
 	}
-	_, err = a.store.ProposeAcquisition(r.Context(), c, id, item.Title, "manual", false)
+	// "Request now" is the explicit approval: send it straight away.
+	requestID, err := a.store.ProposeAcquisition(r.Context(), c, id, item.Title, "manual", true)
 	if err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
+	request, err := a.store.Acquisition(r.Context(), requestID)
+	if err != nil {
+		a.collectionError(w, err)
+		return
+	}
+	if request.State == "pending" || request.State == "uncertain" || request.State == "failed" {
+		if err = a.store.RetryAcquisition(r.Context(), requestID, c.Revision); err != nil {
+			a.collectionError(w, err)
+			return
+		}
+		request.State = "approved"
+	}
+	if request.State == "approved" {
+		if _, err = a.store.QueueJob(r.Context(), "acquire", requestID); err != nil {
+			a.fail(w, "queue acquisition failed")
+			return
+		}
+		a.wakeWorker()
+	}
+	http.Redirect(w, r, back, 303)
 }
 func (a *App) approveRequest(w http.ResponseWriter, r *http.Request) {
 	request, err := a.store.Acquisition(r.Context(), r.PathValue("id"))
@@ -302,6 +325,10 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			bindings = append(bindings, [2]string{ref.ID, server.ID})
 		}
 	}
+	known, err := a.store.AcquisitionIndex(ctx)
+	if err != nil {
+		return err
+	}
 	proposed := 0
 	for _, b := range bindings {
 		collection, err := a.store.Collection(ctx, b[0])
@@ -328,11 +355,17 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			if result.State != "missing" {
 				continue
 			}
+			// A failed lookup is retried only by "Request now", not every hour.
+			if r, seen := known[c.ID+"/"+strconv.Itoa(providerID)]; seen && r.State == "failed" {
+				continue
+			}
 			if proposed >= c.DailyLimit {
 				return nil
 			}
 			item, err := arr.New().Lookup(ctx, conn, providerID)
 			if err != nil {
+				// Remember it so the UI can say "not found" and we don't ask every hour.
+				a.store.RecordFailedRequest(ctx, c, providerID, e.Title, "Lookup found no exact match.")
 				continue
 			}
 			requestID, err := a.store.ProposeAcquisition(ctx, c, providerID, item.Title, "automatic", !c.RequireApproval)

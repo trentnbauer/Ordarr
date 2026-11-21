@@ -417,3 +417,8 @@ fieldset.field>legend{margin-bottom:4px}
 .orow:focus-within .moves,.moves:focus-within{opacity:1;pointer-events:auto}
 .moves .btn{font-family:var(--font-body);font-weight:400}
 @media (max-width:900px){.head>.actions,.head>form.actions{flex:1 1 100%}.table{font-size:13px}.table td,.table th{padding-right:8px}}
+
+.orow .rowextra{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--color-neutral-700);padding:0 0 4px 92px}
+.orow .rowextra .input{padding:3px 8px;font-size:12px}
+.orow .rowextra .btn{font-family:var(--font-body);font-weight:400}
+@media (max-width:900px){.orow .rowextra{padding-left:0}}

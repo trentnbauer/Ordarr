@@ -31,7 +31,8 @@ func (a *App) matchesPage(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	a.renderCollection(w, r, 200, c, "missing", r.PathValue("connection"), nil)
+	// The Missing tab is gone: picks happen on the Order tab.
+	http.Redirect(w, r, "/collections/"+c.ID, 303)
 }
 func (a *App) manualMatch(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.Collection(r.Context(), r.PathValue("id"))
@@ -78,5 +79,5 @@ func (a *App) manualMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.avail.bump()
-	http.Redirect(w, r, "/collections/"+c.ID+"/matches/"+conn, 303)
+	http.Redirect(w, r, "/collections/"+c.ID+"#entry-"+entry.ID, 303)
 }

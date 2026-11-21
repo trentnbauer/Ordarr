@@ -130,6 +130,38 @@ func (s *Store) Acquisitions(ctx context.Context) ([]AcquisitionRequest, error) 
 	}
 	return list, rows.Err()
 }
+
+// AcquisitionIndex lists every request keyed "connection/providerID", for per-row status.
+func (s *Store) AcquisitionIndex(ctx context.Context) (map[string]AcquisitionRequest, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT * FROM acquisition_requests")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]AcquisitionRequest{}
+	for rows.Next() {
+		r, err := scanAcquisition(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[r.ConnectionID+"/"+strconv.Itoa(r.ProviderID)] = r
+	}
+	return out, rows.Err()
+}
+
+// RecordFailedRequest remembers that a downloader could not find an item, so the UI can say so
+// and the automatic job does not look it up again every hour. Request now retries it.
+func (s *Store) RecordFailedRequest(ctx context.Context, c ArrConnection, id int, title, message string) error {
+	if id < 1 {
+		return ErrInvalid
+	}
+	if !validTitle(title) {
+		title = "Unknown title"
+	}
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO acquisition_requests(id,connection_id,provider_id,title,state,origin,connection_revision,created_at,message) VALUES(?,?,?,?,'failed','automatic',?,?,?) ON CONFLICT(connection_id,provider_id) DO NOTHING", newID(), c.ID, id, title, c.Revision, time.Now().Unix(), message)
+	return err
+}
+
 func (s *Store) ProposeAcquisition(ctx context.Context, c ArrConnection, id int, title, origin string, approved bool) (string, error) {
 	if id < 1 || Excluded(c, id) || !validTitle(title) {
 		return "", ErrInvalid
