@@ -63,7 +63,7 @@ func TestConnectionListShowsEveryServiceAndFlagsAMissingRadarr(t *testing.T) {
 		Arr:      []store.ArrConnection{{ID: "s", Kind: "sonarr", Name: "Sonarr", BaseURL: "http://sonarr.lan:8989", ProfileID: 1, RootID: 1}},
 	}
 	byName := map[string]connItem{}
-	for _, i := range connList(o, "s").Items {
+	for _, i := range connList(o, "s", nil).Items {
 		byName[i.Name] = i
 	}
 	for _, name := range []string{"Home Plex", "Jelly", "Sonarr", "Radarr"} {

@@ -262,12 +262,64 @@ func (a *App) collectionDownloads(w http.ResponseWriter, r *http.Request) {
 	}
 	// The form sends "enabled=yes" while "Download missing items for this collection" is ticked;
 	// an unticked box sends nothing, which opts the collection out.
-	if err := a.store.SetCollectionDownloads(r.Context(), id, r.PostForm.Get("enabled") == "yes"); err != nil {
+	enabled := r.PostForm.Get("enabled") == "yes"
+	if err := a.store.SetCollectionDownloads(r.Context(), id, enabled); err != nil {
 		a.collectionError(w, err)
 		return
 	}
+	// "instance" lists the Sonarr/Radarr instances to download from (checkboxes). A form without
+	// the list (older page, or turning downloads on for a collection with none) keeps the saved
+	// choice, falling back to the defaults.
+	if _, listed := r.PostForm["instances_listed"]; listed {
+		if err := a.store.SetCollectionArrs(r.Context(), id, r.PostForm["instance"]); err != nil {
+			a.collectionError(w, err)
+			return
+		}
+	}
+	if enabled {
+		if err := a.ensureInstances(r.Context(), id); err != nil {
+			a.collectionError(w, err)
+			return
+		}
+	}
 	a.wakeWorker()
 	http.Redirect(w, r, "/collections/"+id+"?tab=advanced", 303)
+}
+
+// ensureInstances gives a collection that has no instance chosen yet the default instances,
+// so ticking "Download missing items" on an old collection does something.
+func (a *App) ensureInstances(ctx context.Context, collection string) error {
+	have, err := a.store.CollectionArrs(ctx, collection)
+	if err != nil || len(have) > 0 {
+		return err
+	}
+	defaults, err := a.store.ArrDefaults(ctx)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for _, id := range defaults {
+		ids = append(ids, id)
+	}
+	return a.store.SetCollectionArrs(ctx, collection, ids)
+}
+
+// arrDefault sets or clears an instance as the default of its kind for new collections.
+func (a *App) arrDefault(w http.ResponseWriter, r *http.Request) {
+	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))
+	if err != nil {
+		a.collectionError(w, err)
+		return
+	}
+	id := ""
+	if r.PostForm.Get("default") == "yes" {
+		id = c.ID
+	}
+	if err = a.store.SetArrDefault(r.Context(), c.Kind, id); err != nil {
+		a.collectionError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 
 // arrReady reports whether a connection has somewhere to send requests.
@@ -320,9 +372,15 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	// Only the collections that chose this instance (the default instance of its kind, unless
+	// changed) download from it, so two Sonarrs don't both fetch the same series.
+	chosen, err := a.store.CollectionsForArr(ctx, c.ID)
+	if err != nil {
+		return err
+	}
 	var bindings [][2]string // collection, Plex server it is checked against
 	for _, ref := range o.Refs {
-		if server, ok := o.primary(ref.ID); ok && !optedOut[ref.ID] {
+		if server, ok := o.primary(ref.ID); ok && !optedOut[ref.ID] && chosen[ref.ID] {
 			bindings = append(bindings, [2]string{ref.ID, server.ID})
 		}
 	}

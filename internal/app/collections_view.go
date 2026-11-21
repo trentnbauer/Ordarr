@@ -24,6 +24,12 @@ type listView struct {
 	Filtered                        bool
 }
 
+// arrChoice is one Sonarr/Radarr instance a collection can download from.
+type arrChoice struct {
+	ID, Name, Kind string
+	Selected       bool
+}
+
 type orderRow struct {
 	Entry    store.Entry
 	Position int
@@ -75,6 +81,7 @@ type collectionView struct {
 	StatusWarn            bool
 	Arr                   []arrView
 	NoDownload            bool // this collection opted out of automatic downloads
+	ArrChoices            []arrChoice
 	DownloadsReady        bool // a Sonarr/Radarr instance is set up and automatic downloads are on
 	Added, Moved, Changed int
 	Removed               int
@@ -216,6 +223,13 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		return p, err
 	}
 	v.NoDownload = optedOut[c.ID]
+	chosen, err := a.store.CollectionArrs(ctx, c.ID)
+	if err != nil {
+		return p, err
+	}
+	for _, conn := range o.Arr {
+		v.ArrChoices = append(v.ArrChoices, arrChoice{ID: conn.ID, Name: conn.Name, Kind: map[string]string{"sonarr": "Sonarr", "radarr": "Radarr"}[conn.Kind], Selected: chosen[conn.ID]})
+	}
 	// Status for every row that is not playable yet, from data already held (no network calls).
 	requests, err := a.store.AcquisitionIndex(ctx)
 	if err != nil {
@@ -235,7 +249,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could match.", Warn: true}
 			row.Picks = picks.Candidates[row.Entry.ID]
 		case "missing":
-			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload)
+			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen)
 		}
 	}
 	interval := o.Defaults.SyncInterval

@@ -447,6 +447,7 @@ type arrListItem struct {
 	Warn, Active                 bool
 }
 type arrDetail struct {
+	IsDefault                     bool // the default instance of its kind for new collections
 	Connection                    arrView
 	Waiting, History              []store.AcquisitionRequest
 	Queued, Downloading, Attempts int
@@ -540,7 +541,11 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 	if !found {
 		return nil, sql.ErrNoRows
 	}
-	d := &arrDetail{Connection: arrPublic(conn)}
+	defaults, err := a.store.ArrDefaults(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d := &arrDetail{Connection: arrPublic(conn), IsDefault: defaults[conn.Kind] == conn.ID}
 	d.Queued, d.Downloading = queueCounts(conn.Snapshot)
 	if d.Attempts, err = a.store.AttemptsSince(ctx, conn.ID, time.Now().Add(-24*time.Hour)); err != nil {
 		return nil, err
