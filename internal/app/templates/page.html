@@ -29,6 +29,7 @@
 <a class="side-link" href="/settings" {{if eq $n.Section "settings"}}aria-current="page"{{end}}><span class="label-text">Settings</span></a></div>
 </nav>
 <form class="side-foot" action="/logout" method="post"><span class="who">{{$n.Username}}</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Sign out</button></form>
+<p class="side-ver">Ordarr {{version}} · <a href="https://github.com/trentnbauer/Ordarr" target="_blank" rel="noopener noreferrer">GitHub</a></p>
 </aside>{{end}}
 
 {{define "messages"}}{{if .Error}}<p role="alert" class="alert page-msg">{{.Error}}</p>{{end}}{{if .Notice}}<p role="status" class="notice page-msg">{{.Notice}}</p>{{end}}{{end}}
