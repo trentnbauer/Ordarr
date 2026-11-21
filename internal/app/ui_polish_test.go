@@ -56,3 +56,18 @@ func TestOrderRowsOnlyGetAnExtraLineWhenThereIsSomethingToDo(t *testing.T) {
 		t.Error("the explanation should remain available as a tooltip")
 	}
 }
+
+// The favicon is a file served from Ordarr itself: a data: URL would break the page's image policy,
+// and no icon at all makes every first load request /favicon.ico (a 404).
+func TestFaviconIsServedFromOrdarrItself(t *testing.T) {
+	_, h := fixture(t)
+	session, csrf := setup(t, h)
+	body := request(h, "GET", "/", nil, session, csrf).Body.String()
+	if !strings.Contains(body, `<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">`) || strings.Contains(body, `href="data:`) {
+		t.Fatal("favicon link")
+	}
+	w := request(h, "GET", "/static/favicon.svg", nil)
+	if w.Code != 200 || !strings.HasPrefix(w.Header().Get("Content-Type"), "image/svg+xml") {
+		t.Fatalf("favicon file: %d %q", w.Code, w.Header().Get("Content-Type"))
+	}
+}
