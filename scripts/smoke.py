@@ -115,7 +115,7 @@ with tempfile.TemporaryDirectory(prefix='ordarr-smoke-') as tmp:
         expect(status, 200)
         password = secrets.token_urlsafe(24)
         status, headers, _ = request('/setup', {'csrf': csrf(body), 'username': 'smoke-admin', 'password': password})
-        expect((status, headers['Location']), (303, '/'))
+        expect((status, headers['Location']), (303, '/welcome'))  # a fresh install is sent to the setup wizard
         status, _, body = request('/settings')
         expect(status, 200)
         assert 'smoke-admin' in body
