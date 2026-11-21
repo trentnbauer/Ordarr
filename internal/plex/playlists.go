@@ -35,6 +35,9 @@ func (i *flexibleID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (c *Client) playlistRequest(ctx context.Context, method, base, path, token, clientID string, out any) error {
+	if !ServiceOrigin.MatchString(base) { // same origin check as getLimit, right before the request
+		return ErrURL
+	}
 	req, err := http.NewRequestWithContext(ctx, method, base+path, nil)
 	if err != nil {
 		return ErrPlaylist
