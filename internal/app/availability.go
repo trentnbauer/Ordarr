@@ -80,6 +80,12 @@ func (a *App) availabilityFor(ctx context.Context, collections []store.Collectio
 	if err != nil {
 		return nil, err
 	}
+	// Radarr/Sonarr aliases take part in matching, so a change to them makes cached results stale.
+	al, stamp, err := a.aliases(ctx)
+	if err != nil {
+		return nil, err
+	}
+	generation += "|" + strconv.FormatInt(stamp, 10)
 	a.avail.mu.Lock()
 	if a.avail.values == nil {
 		a.avail.values = map[availabilityKey]availabilityEntry{}
@@ -120,7 +126,7 @@ func (a *App) availabilityFor(ctx context.Context, collections []store.Collectio
 		}
 		v := availability{Ready: true, ScannedAt: scanned, States: map[string]string{}}
 		for _, e := range c.Entries {
-			r := index.Resolve(matching.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, overrides[e.ID])
+			r := index.Resolve(identityFor(e, al), overrides[e.ID])
 			v.States[e.ID] = r.State
 			switch r.State {
 			case "available":

@@ -66,6 +66,7 @@ type Media struct {
 	Title      string   `json:"title"`
 	TMDB       int      `json:"tmdbId"`
 	TVDB       int      `json:"tvdbId"`
+	IMDB       string   `json:"imdbId"`
 	Slug       string   `json:"titleSlug"`
 	Monitored  bool     `json:"monitored"`
 	HasFile    bool     `json:"hasFile"`

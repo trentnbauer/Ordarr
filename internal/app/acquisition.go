@@ -384,6 +384,10 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			bindings = append(bindings, [2]string{ref.ID, server.ID})
 		}
 	}
+	al, _, err := a.aliases(ctx)
+	if err != nil {
+		return err
+	}
 	known, err := a.store.AcquisitionIndex(ctx)
 	if err != nil {
 		return err
@@ -410,7 +414,7 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			if _, exists, err := arr.Existing(conn, snapshot.Media, providerID); exists || err != nil {
 				continue
 			}
-			result := matching.Resolve(matching.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, items, manual[e.ID])
+			result := matching.Resolve(identityFor(e, al), items, manual[e.ID])
 			if result.State != "missing" {
 				continue
 			}

@@ -104,6 +104,8 @@ type App struct {
 	mu          sync.Mutex
 	attempts    map[string]attempt
 	avail       availabilityCache
+	aliasMu     sync.Mutex
+	aliasCached *aliasCache
 	community   *community.Catalogue
 }
 type attempt struct {

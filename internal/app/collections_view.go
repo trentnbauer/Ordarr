@@ -66,8 +66,6 @@ type collectionView struct {
 	Eligible              []plexView
 	Runs                  []syncRunView
 	History               []jobRow
-	PickEntry, PickQuery  string
-	PickResults           []plex.IdentifiedMedia
 	OtherPlex             []plexView
 	Jellyfin              []jellyfinView
 	Adding                bool
@@ -235,18 +233,16 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	if err != nil {
 		return p, err
 	}
-	v.PickEntry, v.PickQuery = r.URL.Query().Get("pick"), r.URL.Query().Get("q")
-	picks, err := a.loadPicks(ctx, c, v.Server.ID, v.Avail, v.PickEntry, v.PickQuery)
+	picks, err := a.loadPicks(ctx, c, v.Server.ID, v.Avail)
 	if err != nil {
 		return p, err
 	}
-	v.PickResults = picks.Results
 	for i := range v.Rows {
 		row := &v.Rows[i]
 		row.Manual = picks.Manual[row.Entry.ID]
 		switch row.State {
 		case "unmatched":
-			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could match.", Warn: true}
+			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could be this one.", Warn: true}
 			row.Picks = picks.Candidates[row.Entry.ID]
 		case "missing":
 			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen)

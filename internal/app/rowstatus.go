@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/trentnbauer/Ordarr/internal/arr"
 	"github.com/trentnbauer/Ordarr/internal/matching"
@@ -87,12 +85,12 @@ func statusOn(c store.ArrConnection, requests map[string]store.AcquisitionReques
 type pickData struct {
 	Candidates map[string][]plex.IdentifiedMedia // entry ID -> ambiguous matches on the server
 	Manual     map[string]bool                   // entry ID -> mapped by the administrator
-	Results    []plex.IdentifiedMedia            // library search results for the open picker
 }
 
-// loadPicks resolves ambiguous entries against the server's catalogue and, when a picker is
-// open (pickEntry and query set), searches the catalogue for items of the same kind.
-func (a *App) loadPicks(ctx context.Context, c store.Collection, serverID string, v availability, pickEntry, query string) (pickData, error) {
+// loadPicks resolves the entries that need a pick against the server's catalogue and returns
+// the Plex items Ordarr could not decide between: several exact matches, or items with the same
+// title and no IDs at all. There is no free-text search: matching is by ID.
+func (a *App) loadPicks(ctx context.Context, c store.Collection, serverID string, v availability) (pickData, error) {
 	d := pickData{Candidates: map[string][]plex.IdentifiedMedia{}, Manual: map[string]bool{}}
 	if serverID == "" || !v.Ready {
 		return d, nil
@@ -104,7 +102,7 @@ func (a *App) loadPicks(ctx context.Context, c store.Collection, serverID string
 	for id, key := range overrides {
 		d.Manual[id] = key != ""
 	}
-	needItems := pickEntry != ""
+	needItems := false
 	for _, st := range v.States {
 		needItems = needItems || st == "unmatched"
 	}
@@ -118,31 +116,16 @@ func (a *App) loadPicks(ctx context.Context, c store.Collection, serverID string
 	if err != nil {
 		return d, err
 	}
+	al, _, err := a.aliases(ctx)
+	if err != nil {
+		return d, err
+	}
 	index := matching.NewIndex(items)
 	for _, e := range c.Entries {
 		if v.States[e.ID] != "unmatched" {
 			continue
 		}
-		r := index.Resolve(matching.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, overrides[e.ID])
-		d.Candidates[e.ID] = r.Candidates
-	}
-	if pickEntry != "" && strings.TrimSpace(query) != "" {
-		var kind string
-		for _, e := range c.Entries {
-			if e.ID == pickEntry {
-				kind = e.Kind
-			}
-		}
-		q := strings.ToLower(strings.TrimSpace(query))
-		for _, item := range items {
-			if item.Kind == kind && (strings.Contains(strings.ToLower(item.Title), q) || strings.Contains(strings.ToLower(item.SeriesTitle), q)) {
-				d.Results = append(d.Results, item)
-			}
-		}
-		sort.SliceStable(d.Results, func(i, j int) bool { return d.Results[i].Title < d.Results[j].Title })
-		if len(d.Results) > 20 {
-			d.Results = d.Results[:20]
-		}
+		d.Candidates[e.ID] = index.Resolve(identityFor(e, al), overrides[e.ID]).Candidates
 	}
 	return d, nil
 }
