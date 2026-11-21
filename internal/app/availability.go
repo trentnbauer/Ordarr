@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/trentnbauer/Ordarr/internal/matching"
@@ -19,6 +21,19 @@ type availability struct {
 	Found, NeedPick, Missing int
 	States                   map[string]string // entry ID -> available|unmatched|missing
 	MissingEntries           []store.Entry     // state "missing", in order
+}
+
+// Label is the one wording for what is not playable yet: "241 missing · 12 need a pick".
+// "Missing" never includes entries that need a pick, so every screen agrees.
+func (v availability) Label() string {
+	var parts []string
+	if v.Missing > 0 {
+		parts = append(parts, strconv.Itoa(v.Missing)+" missing")
+	}
+	if v.NeedPick > 0 {
+		parts = append(parts, strconv.Itoa(v.NeedPick)+" need a pick")
+	}
+	return strings.Join(parts, " · ")
 }
 
 type availabilityKey struct{ collection, connection string }

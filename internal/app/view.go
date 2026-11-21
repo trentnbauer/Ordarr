@@ -234,8 +234,8 @@ func collectionStatus(o *overview, values map[string]availability, id string) (s
 	for _, d := range o.Destinations[id] {
 		if d.RemoteID != "" {
 			status := "Live on " + o.connectionName(d.ConnectionID)
-			if checked && v.Missing > 0 {
-				return status + " · " + strconv.Itoa(v.Missing) + " missing", false
+			if checked && v.Label() != "" {
+				return status + " · " + v.Label(), false
 			}
 			return status, false
 		}
@@ -243,8 +243,8 @@ func collectionStatus(o *overview, values map[string]availability, id string) (s
 	if len(o.Destinations[id]) > 0 {
 		return "Publishing to " + o.connectionName(o.Destinations[id][0].ConnectionID) + " · not synced yet", false
 	}
-	if checked && v.Missing > 0 {
-		return "Not published · " + strconv.Itoa(v.Missing) + " missing", false
+	if checked && v.Label() != "" {
+		return "Not published · " + v.Label(), false
 	}
 	return "Not published", false
 }
