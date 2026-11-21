@@ -317,7 +317,15 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			if err != nil {
 				return p, err
 			}
-			v.History = historyRows(jobs, time.Now())
+			requests, err := a.store.CollectionRequests(ctx, c.ID)
+			if err != nil {
+				return p, err
+			}
+			instances := map[string]arrLabel{}
+			for _, conn := range o.Arr {
+				instances[conn.ID] = arrLabel{Name: conn.Name, Kind: map[string]string{"radarr": "Radarr", "sonarr": "Sonarr"}[conn.Kind]}
+			}
+			v.History = historyRows(jobs, requests, instances, time.Now())
 		}
 	}
 	return p, nil

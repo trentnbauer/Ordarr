@@ -150,6 +150,32 @@ func (s *Store) Acquisitions(ctx context.Context) ([]AcquisitionRequest, error) 
 	return list, rows.Err()
 }
 
+// CollectionRequests lists the download requests made for a collection's items, newest first: a
+// request belongs to a collection when one of its entries is that title, listed by the ID the
+// downloader uses (TMDB for movies, TVDB for series) or by another ID that was looked up to it.
+func (s *Store) CollectionRequests(ctx context.Context, collection string) ([]AcquisitionRequest, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT r.* FROM acquisition_requests r JOIN arr_connections a ON a.id=r.connection_id
+ WHERE EXISTS (SELECT 1 FROM entries e WHERE e.collection_id=? AND (
+   (a.kind='radarr' AND e.kind='movie' AND ((e.provider='tmdb' AND e.external_id=CAST(r.provider_id AS TEXT))
+     OR EXISTS (SELECT 1 FROM id_aliases x WHERE x.found=1 AND x.kind='movie' AND x.provider=e.provider AND x.id=e.external_id AND x.tmdb=CAST(r.provider_id AS TEXT))))
+   OR (a.kind='sonarr' AND e.kind='episode' AND ((e.provider='tvdb' AND e.external_id=CAST(r.provider_id AS TEXT))
+     OR EXISTS (SELECT 1 FROM id_aliases x WHERE x.found=1 AND x.kind='episode' AND x.provider=e.provider AND x.id=e.external_id AND x.tvdb=CAST(r.provider_id AS TEXT))))))
+ ORDER BY COALESCE(NULLIF(r.attempted_at,0), r.created_at) DESC, r.id DESC LIMIT 100`, collection)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []AcquisitionRequest
+	for rows.Next() {
+		r, err := scanAcquisition(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, r)
+	}
+	return list, rows.Err()
+}
+
 // AcquisitionIndex lists every request keyed "connection/providerID", for per-row status.
 func (s *Store) AcquisitionIndex(ctx context.Context) (map[string]AcquisitionRequest, error) {
 	rows, err := s.DB.QueryContext(ctx, "SELECT * FROM acquisition_requests")

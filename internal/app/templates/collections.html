@@ -78,7 +78,7 @@
 </div></div>{{end}}
 {{end}}
 
-{{define "tab-history"}}{{$v:=.Detail}}<h2 class="adv-h">Recent activity</h2><div class="rows">{{range $v.History}}<div class="history"><span class="when">{{clock .When}}</span><span class="what{{if eq .Class "warn"}} warn{{end}}">{{.Kind}}</span><span>{{.Result}}</span></div>{{else}}<p class="note">Nothing has run yet.</p>{{end}}</div>{{end}}
+{{define "tab-history"}}{{$v:=.Detail}}<h2 class="adv-h">Recent activity</h2><p class="note">Syncs, source checks and download requests for this collection's items, including which Radarr or Sonarr instance each request went to.</p><div class="rows">{{range $v.History}}<div class="history"><span class="when">{{clock .When}}</span><span class="what{{if eq .Class "warn"}} warn{{end}}">{{.Kind}}</span><span>{{if .What}}<span class="strong">{{.What}}</span>{{if .Instance}} <span class="tag">{{.Instance}}</span>{{end}} · {{end}}{{.Result}}</span></div>{{else}}<p class="note">Nothing has run yet.</p>{{end}}</div>{{end}}
 
 {{define "sync-runs"}}{{$root:=.}}<div class="rows">{{range .Detail.Runs}}<div class="history"><span class="when">{{clock .CreatedAt}}</span><span class="what{{if eq .State "failed"}} warn{{else if ne .State "succeeded"}} muted{{end}}">{{runState .State}}</span><span>{{if .Destination}}{{.Destination}} · {{end}}{{if eq .State "succeeded"}}{{plural (len .Proposed) "item" "items"}} · {{end}}{{syncText .Message}}{{if or (eq .State "pending") (eq .State "approved")}}<form class="inline-form" method="post" action="/sync-runs/{{.ID}}/approve"><input type="hidden" name="csrf" value="{{$root.CSRF}}"> <button class="btn btn-sm btn-dark">Approve this exact order</button></form>{{end}}</span></div>{{else}}<p class="note">No syncs yet.</p>{{end}}</div>{{end}}
 
