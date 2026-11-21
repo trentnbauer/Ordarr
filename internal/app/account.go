@@ -19,6 +19,7 @@ type accountView struct {
 	Username, FriendlyName, ExpiresAt, CheckedAt string
 	Revision                                     int
 	Restricted, Expired                          bool
+	Playlists, Picks                             int // what disconnecting would stop managing / forget
 }
 type authView struct{ ID, URL, ExpiresAt string }
 type accountServerView struct {
@@ -63,6 +64,11 @@ func (a *App) accountProjection(ctx context.Context) (*accountView, []accountSer
 		return nil, nil, err
 	}
 	view := &accountView{UserID: account.UserID, Username: account.Username, FriendlyName: account.FriendlyName, Restricted: account.Restricted, Revision: account.Revision, ExpiresAt: time.Unix(account.ExpiresAt, 0).UTC().Format(time.RFC3339), CheckedAt: time.Unix(account.CheckedAt, 0).UTC().Format(time.RFC3339), Expired: account.ExpiresAt <= time.Now().Unix()}
+	if ids, err := a.store.AccountPlexIDs(ctx); err == nil {
+		if impact, err := a.store.PlexImpact(ctx, ids...); err == nil {
+			view.Playlists, view.Picks = impact.Playlists, impact.Picks
+		}
+	}
 	servers := []accountServerView{}
 	for _, resource := range credentials.Resources {
 		// Issue #6: only servers owned by the signed-in account can be connected.
@@ -297,6 +303,20 @@ func (a *App) accountDisconnect(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.PostForm.Get("confirm_username") != account.Username {
 		a.renderPlex(w, r, 400, "Type the connected Plex username exactly to disconnect it and its linked servers locally.", "")
+		return
+	}
+	ids, err := a.store.AccountPlexIDs(r.Context())
+	if err != nil {
+		a.accountError(w, r, err)
+		return
+	}
+	impact, err := a.store.PlexImpact(r.Context(), ids...)
+	if err != nil {
+		a.accountError(w, r, err)
+		return
+	}
+	if impact.Playlists > 0 && r.PostForm.Get("confirm_playlists") != "yes" {
+		a.renderPlex(w, r, 400, "Tick the box to confirm: disconnecting makes Ordarr stop managing "+plural(impact.Playlists, "playlist", "playlists")+". They stay in Plex.", "")
 		return
 	}
 	if err = a.store.DisconnectPlexAccount(r.Context(), revision); err != nil {
