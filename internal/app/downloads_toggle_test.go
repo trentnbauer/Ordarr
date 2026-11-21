@@ -25,7 +25,7 @@ func TestDownloadToggleIsTickedByDefault(t *testing.T) {
 	box := regexp.MustCompile(`<input type="checkbox" name="enabled" value="yes" (checked)?> Download missing items for this collection`)
 	check := func(wantTicked bool) {
 		t.Helper()
-		body := request(h, "GET", "/collections/"+id+"?tab=advanced", nil, session, csrf).Body.String()
+		body := request(h, "GET", "/collections/"+id+"?tab=downloads", nil, session, csrf).Body.String()
 		m := box.FindStringSubmatch(body)
 		if m == nil {
 			t.Fatal("checkbox missing or reworded")

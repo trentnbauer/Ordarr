@@ -283,7 +283,7 @@ func (a *App) collectionDownloads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/collections/"+id+"?tab=advanced", 303)
+	http.Redirect(w, r, "/collections/"+id+"?tab=downloads", 303)
 }
 
 // ensureInstances gives a collection that has no instance chosen yet the default instances,
