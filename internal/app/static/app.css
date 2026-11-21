@@ -20,6 +20,35 @@
   --shadow-lg:0 12px 32px color-mix(in srgb,#2d2b2b 22%,transparent);
   --rule:2px solid var(--color-divider);--hair:1px solid var(--color-neutral-300);
 }
+
+/* Dark theme: follows the system unless the sidebar toggle chose Light or Dark. The two blocks
+   below must stay identical (a test checks). */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --color-bg:#161413;--color-surface:#201e1d;--color-text:#ece9e8;--color-accent:#ff563c;
+  --color-divider:color-mix(in srgb,#ece9e8 38%,transparent);
+  --color-neutral-100:#1b1918;--color-neutral-200:#272423;--color-neutral-300:#3a3736;--color-neutral-400:#504d4c;
+  --color-neutral-500:#6a6665;--color-neutral-600:#8a8685;--color-neutral-700:#a9a5a4;--color-neutral-800:#c9c5c4;--color-neutral-900:#e4e0df;
+  --color-accent-100:#2a1410;--color-accent-200:#3a1a13;--color-accent-300:#55241a;--color-accent-400:#7c3224;
+  --color-accent-500:#ff563c;--color-accent-600:#ff6e56;--color-accent-700:#ff8a73;--color-accent-800:#ffa593;--color-accent-900:#ffd2c8;
+  --shadow-sm:0 1px 2px color-mix(in srgb,#000 40%,transparent);
+  --shadow-md:0 3px 10px color-mix(in srgb,#000 45%,transparent);
+  --shadow-lg:0 12px 32px color-mix(in srgb,#000 55%,transparent);
+}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --color-bg:#161413;--color-surface:#201e1d;--color-text:#ece9e8;--color-accent:#ff563c;
+  --color-divider:color-mix(in srgb,#ece9e8 38%,transparent);
+  --color-neutral-100:#1b1918;--color-neutral-200:#272423;--color-neutral-300:#3a3736;--color-neutral-400:#504d4c;
+  --color-neutral-500:#6a6665;--color-neutral-600:#8a8685;--color-neutral-700:#a9a5a4;--color-neutral-800:#c9c5c4;--color-neutral-900:#e4e0df;
+  --color-accent-100:#2a1410;--color-accent-200:#3a1a13;--color-accent-300:#55241a;--color-accent-400:#7c3224;
+  --color-accent-500:#ff563c;--color-accent-600:#ff6e56;--color-accent-700:#ff8a73;--color-accent-800:#ffa593;--color-accent-900:#ffd2c8;
+  --shadow-sm:0 1px 2px color-mix(in srgb,#000 40%,transparent);
+  --shadow-md:0 3px 10px color-mix(in srgb,#000 45%,transparent);
+  --shadow-lg:0 12px 32px color-mix(in srgb,#000 55%,transparent);
+}
+}
 *,*::before,*::after{box-sizing:border-box}
 html{background:var(--color-bg)}
 body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.55}
@@ -432,11 +461,11 @@ fieldset.field>legend{margin-bottom:4px}
 @media (max-width:900px){.side-ver{order:5;width:100%;padding-top:0}}
 
 .listcol .item.placeholder .t{color:var(--color-neutral-700)}
-.listcol .item.placeholder{border-left:2px dashed var(--color-neutral-400,#bbb)}
+.listcol .item.placeholder{border-left:2px dashed var(--color-neutral-400)}
 .connect-menu{position:relative;display:inline-block}
 .connect-menu summary{list-style:none;cursor:pointer;color:var(--color-accent-700);text-decoration:underline}
 .connect-menu summary::-webkit-details-marker{display:none}
-.connect-menu .menu{position:absolute;right:0;top:100%;z-index:5;background:var(--color-surface,#fff);border:var(--hair,1px solid #ccc);min-width:160px;display:flex;flex-direction:column}
+.connect-menu .menu{position:absolute;right:0;top:100%;z-index:5;background:var(--color-surface);border:var(--hair);min-width:160px;display:flex;flex-direction:column}
 .connect-menu .menu a{padding:6px 10px;text-decoration:none;color:var(--color-text)}
 .connect-menu .menu a:hover{background:var(--color-neutral-200)}
 
@@ -444,3 +473,6 @@ fieldset.field>legend{margin-bottom:4px}
 .spinner[hidden]{display:none}
 @keyframes ordarr-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spinner{animation:none;border-right-color:currentColor;opacity:.55}}
+
+.theme-toggle{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--color-neutral-700);cursor:pointer}
+.theme-toggle:hover{color:var(--color-accent-700)}
