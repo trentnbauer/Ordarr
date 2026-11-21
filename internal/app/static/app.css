@@ -478,3 +478,11 @@ fieldset.field>legend{margin-bottom:4px}
 .theme-toggle:hover{color:var(--color-accent-700)}
 
 .head .cover{width:96px;max-height:144px;object-fit:cover;border:var(--hair);flex:none;background:var(--color-surface)}
+
+/* polish found in the browser review */
+.adv-h{padding:0 24px}
+.pad-x{padding-left:24px;padding-right:24px}
+.connect-menu summary::before,.connect-menu[open] summary::before{content:none}
+.fields-2{align-items:end}
+.seg{flex-wrap:wrap}
+.default-form{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
