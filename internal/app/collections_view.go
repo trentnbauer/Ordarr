@@ -76,6 +76,7 @@ type collectionView struct {
 	SyncIntervals         []intervalOption
 	Created               bool
 	StatusLine            string
+	StatusParts           []statusPart
 	HasCover              bool          // a downloaded cover image can be shown
 	StatusCounts          []statusCount // rows by download status, for the Downloads tab
 	SyncFailed            bool          // the last playlist sync failed or waits for approval
@@ -295,6 +296,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		v.SourceIntervals = intervals(sub.IntervalMinutes, false)
 	}
 	v.StatusLine, v.StatusWarn = statusLine(v, len(c.Entries))
+	v.StatusParts = statusParts(v, len(c.Entries))
 	v.StatusCounts = statusCounts(v.Rows)
 	for _, d := range v.Destinations {
 		v.SyncFailed = v.SyncFailed || o.syncNeedsYou(d.ID)
