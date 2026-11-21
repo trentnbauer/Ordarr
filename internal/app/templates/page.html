@@ -1,4 +1,4 @@
-{{define "page.html"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Ordarr</title><link rel="preload" href="/static/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/static/app.css"><script src="/static/editor.js" defer></script><script src="/static/busy.js" defer></script></head><body>
+{{define "page.html"}}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · Ordarr</title><link rel="preload" href="/static/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/static/app.css"><script src="/static/theme.js"></script><script src="/static/editor.js" defer></script><script src="/static/busy.js" defer></script></head><body>
 <a class="skip" href="#main">Skip to content</a>
 {{if or (eq .Mode "setup") (eq .Mode "login")}}{{template "auth" .}}{{else}}<div class="shell">{{template "sidebar" .}}<main id="main" tabindex="-1">
 {{if eq .Mode "dashboard"}}{{template "collections" .}}
@@ -27,7 +27,7 @@
 <a class="side-link" href="/connections" {{if eq $n.Section "connections"}}aria-current="page"{{end}}><span class="label-text">Connections</span><span class="side-meta{{if $n.ConnWarn}} warn{{end}}">{{$n.Connections}}</span></a>
 <a class="side-link" href="/settings" {{if eq $n.Section "settings"}}aria-current="page"{{end}}><span class="label-text">Settings</span></a></div>
 </nav>
-<form class="side-foot" action="/logout" method="post"><span class="who">{{$n.Username}}</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Sign out</button></form>
+<form class="side-foot" action="/logout" method="post"><span class="who">{{$n.Username}}</span><button type="button" class="theme-toggle" id="theme-toggle">Theme</button><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Sign out</button></form>
 <p class="side-ver">Ordarr {{version}} · <a href="https://github.com/trentnbauer/Ordarr" target="_blank" rel="noopener noreferrer">GitHub</a></p>
 </aside>{{end}}
 
