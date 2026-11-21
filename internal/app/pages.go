@@ -49,7 +49,7 @@ type activityView struct {
 	Waiting           int
 }
 
-var jobKinds = map[string]string{"scan": "Library scan", "jellyfin-scan": "Library scan", "sync": "Playlist sync", "publish": "Playlist sync", "source": "Source check", "arr-refresh": "Service refresh", "arr-auto": "Automatic requests", "acquire": "Request", "cover": "Cover image"}
+var jobKinds = map[string]string{"scan": "Library scan", "jellyfin-scan": "Library scan", "sync": "Playlist sync", "publish": "Playlist sync", "source": "Source check", "arr-refresh": "Service refresh", "arr-auto": "Automatic requests", "acquire": "Request", "aliases": "ID lookup", "cover": "Cover image"}
 
 func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) {
 	v := &activityView{}

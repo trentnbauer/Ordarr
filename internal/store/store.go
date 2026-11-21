@@ -49,6 +49,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if _, err = db.Exec(aliasSchema); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 func (s *Store) migrate() error {
