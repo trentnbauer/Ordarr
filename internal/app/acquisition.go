@@ -100,14 +100,6 @@ func (a *App) refreshArr(ctx context.Context, id string) error {
 	}
 	return a.store.UpdateArrSnapshot(ctx, c, snapshot)
 }
-func providerNumber(c store.ArrConnection, e store.Entry) (int, bool) {
-	provider, kind := "tvdb", "episode"
-	if c.Kind == "radarr" {
-		provider, kind = "tmdb", "movie"
-	}
-	id, err := strconv.Atoi(e.ExternalID)
-	return id, err == nil && id > 0 && id <= 2147483647 && e.Provider == provider && e.Kind == kind
-}
 func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))
 	if err != nil {
@@ -125,9 +117,20 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 			entry = e
 		}
 	}
-	id, ok := providerNumber(c, entry)
-	if !ok {
-		http.Error(w, "Choose an exact TMDB movie or TVDB episode entry", 400)
+	// An entry listed by IMDb ID is translated to the TMDB/TVDB ID the downloader needs (looked up now if needed).
+	lookupCtx, cancelLookup := context.WithTimeout(r.Context(), 15*time.Second)
+	id, state, err := a.ensureAlias(lookupCtx, c, entry)
+	cancelLookup()
+	switch {
+	case err != nil:
+		http.Error(w, "Couldn't ask "+c.Name+" about this title right now. Check it is online, then try again.", 502)
+		return
+	case state == idNotFound:
+		// The lookup already remembered that the downloader does not know it; the row says so.
+		http.Redirect(w, r, "/collections/"+collection.ID+"#entry-"+entry.ID, 303)
+		return
+	case state != idOK:
+		http.Error(w, "Choose a movie or episode entry that "+c.Name+" can request", 400)
 		return
 	}
 	back := "/collections/" + collection.ID + "#entry-" + entry.ID
@@ -384,6 +387,10 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			bindings = append(bindings, [2]string{ref.ID, server.ID})
 		}
 	}
+	// Titles listed by IMDb ID need their TMDB/TVDB ID first; this asks for any still unknown.
+	if err = a.resolveAliases(ctx); err != nil {
+		a.logger.Warn("ID lookup before requesting failed", "error", err.Error())
+	}
 	al, _, err := a.aliases(ctx)
 	if err != nil {
 		return err
@@ -407,10 +414,11 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			return err
 		}
 		for _, e := range collection.Entries {
-			providerID, ok := providerNumber(c, e)
-			if !ok || store.Excluded(c, providerID) {
+			providerID, state := requestID(c, e, al)
+			if state != idOK || store.Excluded(c, providerID) {
 				continue
 			}
+			a.rememberAlias(ctx, e, al) // so the request can be validated against the database before it is sent
 			if _, exists, err := arr.Existing(conn, snapshot.Media, providerID); exists || err != nil {
 				continue
 			}

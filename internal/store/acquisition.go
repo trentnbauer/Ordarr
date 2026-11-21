@@ -303,12 +303,15 @@ func (s *Store) ValidateAcquisition(ctx context.Context, r AcquisitionRequest, c
 		if !d.AutoDownload {
 			return ErrConflict
 		}
-		provider, kind := "tvdb", "episode"
+		provider, kind, nativeColumn := "tvdb", "episode", "tvdb"
 		if c.Kind == "radarr" {
-			provider, kind = "tmdb", "movie"
+			provider, kind, nativeColumn = "tmdb", "movie", "tmdb"
 		}
 		var count int
-		if err = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM entries e JOIN collection_arr ca ON ca.collection_id=e.collection_id AND ca.connection_id=? WHERE e.collection_id NOT IN (SELECT collection_id FROM collection_no_download) AND e.provider=? AND e.kind=? AND e.external_id=?", c.ID, provider, kind, strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
+		if err = s.DB.QueryRowContext(ctx, `SELECT count(*) FROM entries e JOIN collection_arr ca ON ca.collection_id=e.collection_id AND ca.connection_id=?
+ WHERE e.collection_id NOT IN (SELECT collection_id FROM collection_no_download) AND e.kind=?
+ AND ((e.provider=? AND e.external_id=?)
+  OR EXISTS (SELECT 1 FROM id_aliases a WHERE a.found=1 AND a.kind=e.kind AND a.provider=e.provider AND a.id=e.external_id AND a.`+nativeColumn+`=?))`, c.ID, kind, provider, strconv.Itoa(r.ProviderID), strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
 			return err
 		}
 		if count == 0 {

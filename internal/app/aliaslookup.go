@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -19,25 +20,33 @@ const (
 
 var aliasPause = 250 * time.Millisecond // between lookups; a variable so tests can shorten it
 
+var imdbRef = regexp.MustCompile(`^tt[0-9]{7,10}$`)
+
 type aliasWant struct {
-	kind, provider string
-	id             int
-	title          string
+	kind, provider, ext string
+	title               string
+}
+
+// lookupKinds says which downloader looks an entry up and by which of its IDs: movies go to Radarr
+// by TMDB or IMDb ID, series to Sonarr by TVDB or IMDb ID.
+func lookupKind(e store.Entry) (arrKind string, ok bool) {
+	switch {
+	case e.Kind == "movie" && (e.Provider == "tmdb" && numericID(e.ExternalID) || e.Provider == "imdb" && imdbRef.MatchString(e.ExternalID)):
+		return "radarr", true
+	case e.Kind == "episode" && (e.Provider == "tvdb" && numericID(e.ExternalID) || e.Provider == "imdb" && imdbRef.MatchString(e.ExternalID)):
+		return "sonarr", true
+	}
+	return "", false
+}
+
+func numericID(s string) bool {
+	id, err := strconv.Atoi(s)
+	return err == nil && id > 0 && id <= 2147483647
 }
 
 // unresolvedAliases lists titles in collections whose other IDs are not known yet: not in a
 // connected Radarr/Sonarr library, not looked up before (or "not found" long enough ago to try again).
 func (a *App) unresolvedAliases(ctx context.Context, al aliasIndex) ([]aliasWant, error) {
-	stored, err := a.store.Aliases(ctx)
-	if err != nil {
-		return nil, err
-	}
-	recentlyMissing := map[string]bool{}
-	for _, l := range stored {
-		if !l.Found && time.Since(time.Unix(l.FetchedAt, 0)) < aliasNegativeTTL {
-			recentlyMissing[l.Kind+"|"+l.Provider+":"+l.ID] = true
-		}
-	}
 	refs, err := a.store.CollectionRefs(ctx)
 	if err != nil {
 		return nil, err
@@ -50,17 +59,15 @@ func (a *App) unresolvedAliases(ctx context.Context, al aliasIndex) ([]aliasWant
 			continue
 		}
 		for _, e := range c.Entries {
-			// Movies are looked up in Radarr by TMDB ID, series in Sonarr by TVDB ID.
-			if !(e.Kind == "movie" && e.Provider == "tmdb" || e.Kind == "episode" && e.Provider == "tvdb") {
+			if _, ok := lookupKind(e); !ok {
 				continue
 			}
 			key := e.Kind + "|" + e.Provider + ":" + e.ExternalID
-			id, err := strconv.Atoi(e.ExternalID)
-			if _, known := al[key]; known || recentlyMissing[key] || seen[key] || err != nil || id < 1 {
+			if _, known := al[key]; known || seen[key] { // known includes "looked up, not found" while it is fresh
 				continue
 			}
 			seen[key] = true
-			out = append(out, aliasWant{kind: e.Kind, provider: e.Provider, id: id, title: e.Title})
+			out = append(out, aliasWant{kind: e.Kind, provider: e.Provider, ext: e.ExternalID, title: e.Title})
 		}
 	}
 	return out, nil
@@ -88,10 +95,40 @@ func (a *App) scheduleAliases(ctx context.Context) {
 	}
 }
 
+// lookupAlias asks one downloader about one title and remembers the answer, including "not found".
+// Any other failure (the downloader is down) is returned and nothing is remembered.
+func (a *App) lookupAlias(ctx context.Context, c store.ArrConnection, w aliasWant) error {
+	conn, err := a.arrAccess(c)
+	if err != nil {
+		return err
+	}
+	var item arr.Media
+	if w.provider == "imdb" {
+		item, err = arr.New().LookupIMDB(ctx, conn, w.ext)
+	} else {
+		id, _ := strconv.Atoi(w.ext)
+		item, err = arr.New().Lookup(ctx, conn, id)
+	}
+	switch {
+	case errors.Is(err, arr.ErrIdentity):
+		return a.store.SaveAlias(ctx, store.StoredAlias{Kind: w.kind, Provider: w.provider, ID: w.ext, Title: w.title})
+	case err != nil:
+		return err
+	}
+	stored := store.StoredAlias{Kind: w.kind, Provider: w.provider, ID: w.ext, IMDB: item.IMDB, Title: item.Title, Found: true}
+	if item.TMDB > 0 {
+		stored.TMDB = strconv.Itoa(item.TMDB)
+	}
+	if w.kind == "episode" && item.TVDB > 0 {
+		stored.TVDB = strconv.Itoa(item.TVDB)
+	}
+	return a.store.SaveAlias(ctx, stored)
+}
+
 // resolveAliases is the "aliases" job. It asks Radarr/Sonarr (their lookup, which knows titles that
 // are not in the library yet) for the other IDs of titles Ordarr cannot cross-match, and remembers
-// the answers, including "not found". A downloader that is down stops the run without remembering
-// anything, so the same titles are asked again next time.
+// the answers. This is also how entries listed by IMDb ID get the TMDB/TVDB ID needed to request
+// them. A downloader that is down stops the run without remembering anything.
 func (a *App) resolveAliases(ctx context.Context) error {
 	conns, err := a.store.ArrConnections(ctx)
 	if err != nil {
@@ -124,27 +161,7 @@ func (a *App) resolveAliases(ctx context.Context) error {
 		if done >= aliasBatch {
 			break
 		}
-		conn, err := a.arrAccess(c)
-		if err != nil {
-			return err
-		}
-		item, err := arr.New().Lookup(ctx, conn, w.id)
-		switch {
-		case errors.Is(err, arr.ErrIdentity):
-			err = a.store.SaveAlias(ctx, store.StoredAlias{Kind: w.kind, Provider: w.provider, ID: strconv.Itoa(w.id), Title: w.title})
-		case err != nil:
-			return err
-		default:
-			stored := store.StoredAlias{Kind: w.kind, Provider: w.provider, ID: strconv.Itoa(w.id), IMDB: item.IMDB, Title: item.Title, Found: true}
-			if item.TMDB > 0 {
-				stored.TMDB = strconv.Itoa(item.TMDB)
-			}
-			if w.kind == "episode" && item.TVDB > 0 {
-				stored.TVDB = strconv.Itoa(item.TVDB)
-			}
-			err = a.store.SaveAlias(ctx, stored)
-		}
-		if err != nil {
+		if err = a.lookupAlias(ctx, c, w); err != nil {
 			return err
 		}
 		done++
@@ -155,4 +172,36 @@ func (a *App) resolveAliases(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// ensureAlias makes sure a request for an entry listed by a non-native ID (IMDb) can be sent: the
+// title is looked up now if it has not been. It returns the resulting state.
+func (a *App) ensureAlias(ctx context.Context, c store.ArrConnection, e store.Entry) (int, idState, error) {
+	al, _, err := a.aliases(ctx)
+	if err != nil {
+		return 0, idNone, err
+	}
+	id, state := requestID(c, e, al)
+	if state != idPending {
+		return id, state, nil
+	}
+	if err = a.lookupAlias(ctx, c, aliasWant{kind: e.Kind, provider: e.Provider, ext: e.ExternalID, title: e.Title}); err != nil {
+		return 0, idPending, err
+	}
+	if al, _, err = a.aliases(ctx); err != nil {
+		return 0, idNone, err
+	}
+	id, state = requestID(c, e, al)
+	return id, state, nil
+}
+
+// rememberAlias stores an alias that came from a connected library, so the request that depends on
+// it can be validated against the database later (a request is checked again right before it is sent).
+func (a *App) rememberAlias(ctx context.Context, e store.Entry, al aliasIndex) {
+	info := al[e.Kind+"|"+e.Provider+":"+e.ExternalID]
+	if info.Missing || len(info.IDs) == 0 {
+		return
+	}
+	stored := store.StoredAlias{Kind: e.Kind, Provider: e.Provider, ID: e.ExternalID, IMDB: info.IDs["imdb"], TMDB: info.IDs["tmdb"], TVDB: info.IDs["tvdb"], Title: info.Title, Found: true}
+	a.store.SaveAlias(ctx, stored)
 }

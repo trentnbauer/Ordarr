@@ -234,6 +234,10 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		v.ArrChoices = append(v.ArrChoices, arrChoice{ID: conn.ID, Name: conn.Name, Kind: map[string]string{"sonarr": "Sonarr", "radarr": "Radarr"}[conn.Kind], Selected: chosen[conn.ID]})
 	}
 	// Status for every row that is not playable yet, from data already held (no network calls).
+	al, _, err := a.aliases(ctx)
+	if err != nil {
+		return p, err
+	}
 	requests, err := a.store.AcquisitionIndex(ctx)
 	if err != nil {
 		return p, err
@@ -250,7 +254,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could be this one.", Warn: true}
 			row.Picks = picks.Candidates[row.Entry.ID]
 		case "missing":
-			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen)
+			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen, al)
 		}
 	}
 	interval := o.Defaults.SyncInterval
