@@ -16,7 +16,7 @@ func (a *App) arrAccess(c store.ArrConnection) (arr.Connection, error) {
 	return arr.Connection{Kind: c.Kind, URL: c.BaseURL, Key: key}, err
 }
 func (a *App) connectArr(w http.ResponseWriter, r *http.Request) {
-	base, err := plex.NormalizeURL(r.PostForm.Get("url"), r.PostForm.Get("allow_http") == "yes")
+	base, err := plex.NormalizeBaseURL(r.PostForm.Get("url"), r.PostForm.Get("allow_http") == "yes")
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
