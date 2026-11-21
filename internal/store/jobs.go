@@ -183,3 +183,24 @@ func (s *Store) SetManualMatch(ctx context.Context, connection string, e Entry, 
 	_, err := s.DB.ExecContext(ctx, "INSERT INTO manual_matches VALUES(?,?,?,?) ON CONFLICT(connection_id,entry_id) DO UPDATE SET identity=excluded.identity,rating_key=excluded.rating_key", connection, e.ID, EntryIdentity(e), key)
 	return err
 }
+
+// ActiveJobs lists the kinds of jobs that are running or waiting, running ones first.
+func (s *Store) ActiveJobs(ctx context.Context) (running, queued []string, err error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT kind,state FROM jobs WHERE state IN ('running','queued') ORDER BY created_at")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var kind, state string
+		if err = rows.Scan(&kind, &state); err != nil {
+			return nil, nil, err
+		}
+		if state == "running" {
+			running = append(running, kind)
+		} else {
+			queued = append(queued, kind)
+		}
+	}
+	return running, queued, rows.Err()
+}

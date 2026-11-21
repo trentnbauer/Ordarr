@@ -209,6 +209,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /settings/plex/{id}/libraries/{library}/media", a.protected(a.libraryMedia))
 	m.HandleFunc("POST /settings/plex/{id}/libraries/{library}/media", a.protected(a.fetchLibraryMedia))
 	m.HandleFunc("GET /jobs", a.protected(a.jobsPage))
+	m.HandleFunc("GET /activity/busy", a.protected(a.busyStatus))
 	m.HandleFunc("POST /settings/plex/{id}/scan", a.protected(a.queueScan))
 	m.HandleFunc("GET /collections/{id}/matches/{connection}", a.protected(a.matchesPage))
 	m.HandleFunc("POST /collections/{id}/matches/{connection}", a.protected(a.manualMatch))
@@ -261,7 +262,7 @@ func (a *App) security(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "same-origin")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; script-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 		if r.Method == "POST" {
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)

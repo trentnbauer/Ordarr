@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -660,4 +661,15 @@ func (a *App) editArr(w http.ResponseWriter, r *http.Request) {
 		a.store.UpdateArrSnapshot(r.Context(), fresh, snapshot)
 	}
 	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
+}
+
+// busyStatus feeds the spinner next to Activity; the page polls it so it updates without a reload.
+func (a *App) busyStatus(w http.ResponseWriter, r *http.Request) {
+	busy, label, err := a.busy(r.Context())
+	if err != nil {
+		a.fail(w, "activity status failed")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"busy": busy, "label": label})
 }
