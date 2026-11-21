@@ -61,7 +61,9 @@ Ordarr is a self-hosted watch-order manager that mixes movies and individual TV 
 - Export in canonical order; round-trip import/export without losing identifiers or deliberate duplicates.
 
 The implemented version 1 schema uses `id` (optional collection origin), `title`,
-`description`, and ordered `entries`. Every entry has a source-stable `id`, `kind`,
+`description`, an optional `cover` (a public `https://` link to a PNG, JPEG or WebP image of at
+most 2 MiB; Ordarr downloads it, shows it, and uploads it as the Plex playlist's poster), and
+ordered `entries`. Every entry has a source-stable `id`, `kind`,
 `title`, `provider`, and string `external_id`; episodes add `season`/`episode`.
 `episode_range` and `season` use explicit `end`, expand deterministically, and export
 as individual episodes. Imports always create an independent local collection ID.

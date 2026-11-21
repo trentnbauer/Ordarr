@@ -8,6 +8,7 @@ import (
 	"github.com/trentnbauer/Ordarr/internal/jellyfin"
 	"github.com/trentnbauer/Ordarr/internal/plex"
 	"github.com/trentnbauer/Ordarr/internal/store"
+	"github.com/trentnbauer/Ordarr/internal/subscription"
 	"net/http"
 	"time"
 )
@@ -70,6 +71,8 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 		err = a.automaticAcquisition(ctx, j.Target)
 	case "acquire":
 		err = a.executeAcquisition(ctx, j.Target)
+	case "cover":
+		err = a.fetchCover(ctx, j)
 	case "source":
 		err = a.fetchSource(ctx, j)
 	case "scan":
@@ -92,7 +95,7 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 	if err != nil {
 		status = "failed"
 		message = "The operation failed; last verified data was retained."
-		if errors.Is(err, jellyfin.ErrAPI) || errors.Is(err, jellyfin.ErrAuth) || errors.Is(err, jellyfin.ErrChanged) || errors.Is(err, arr.ErrAPI) || errors.Is(err, arr.ErrIdentity) || errors.Is(err, store.ErrInvalid) || errors.Is(err, store.ErrConflict) || errors.Is(err, plex.ErrAuth) || errors.Is(err, plex.ErrUnavailable) || errors.Is(err, plex.ErrMediaPage) || errors.Is(err, plex.ErrMediaChanged) {
+		if errors.Is(err, jellyfin.ErrAPI) || errors.Is(err, jellyfin.ErrAuth) || errors.Is(err, jellyfin.ErrChanged) || errors.Is(err, subscription.ErrImage) || errors.Is(err, arr.ErrAPI) || errors.Is(err, arr.ErrIdentity) || errors.Is(err, store.ErrInvalid) || errors.Is(err, store.ErrConflict) || errors.Is(err, plex.ErrAuth) || errors.Is(err, plex.ErrUnavailable) || errors.Is(err, plex.ErrMediaPage) || errors.Is(err, plex.ErrMediaChanged) {
 			message = err.Error()
 		}
 	}

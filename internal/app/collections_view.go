@@ -76,6 +76,7 @@ type collectionView struct {
 	SyncIntervals         []intervalOption
 	Created               bool
 	StatusLine            string
+	HasCover              bool          // a downloaded cover image can be shown
 	StatusCounts          []statusCount // rows by download status, for the Downloads tab
 	SyncFailed            bool          // the last playlist sync failed or waits for approval
 	StatusWarn            bool
@@ -166,7 +167,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	if !collectionTabs[tab] {
 		tab = "order"
 	}
-	v := &collectionView{Tab: tab, Adding: r.URL.Query().Get("add") == "1", Created: r.URL.Query().Get("created") == "1"}
+	v := &collectionView{HasCover: a.ensureCover(ctx, c), Tab: tab, Adding: r.URL.Query().Get("add") == "1", Created: r.URL.Query().Get("created") == "1"}
 	p.Detail = v
 	if r.URL.Query().Get("publish") == "failed" {
 		p.Error = "The collection was added, but its playlist couldn't be set up. Choose a server below to publish it."

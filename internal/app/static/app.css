@@ -476,3 +476,5 @@ fieldset.field>legend{margin-bottom:4px}
 
 .theme-toggle{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--color-neutral-700);cursor:pointer}
 .theme-toggle:hover{color:var(--color-accent-700)}
+
+.head .cover{width:96px;max-height:144px;object-fit:cover;border:var(--hair);flex:none;background:var(--color-surface)}

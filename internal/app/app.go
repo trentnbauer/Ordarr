@@ -194,6 +194,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /settings/export.env", a.protected(a.exportEnvironment))
 	m.HandleFunc("GET /collections/new", a.protected(a.newCollection))
 	m.HandleFunc("POST /collections", a.protected(a.newCollection))
+	m.HandleFunc("GET /collections/{id}/cover", a.protected(a.coverImage))
 	m.HandleFunc("GET /collections/{id}", a.protected(a.collectionDetail))
 	m.HandleFunc("POST /collections/{id}", a.protected(a.changeCollection))
 	m.HandleFunc("GET /collections/{id}/entries/{entry}/edit", a.protected(a.collectionDetail))
