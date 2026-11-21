@@ -156,3 +156,39 @@ func plexChanged(result sql.Result) error {
 	}
 	return nil
 }
+
+// PlexImpact is what removing Plex connections takes with it: the playlist links Ordarr keeps
+// for them (the playlists themselves stay in Plex, but Ordarr stops managing them) and the
+// matches the administrator picked by hand.
+type PlexImpact struct{ Playlists, Picks int }
+
+func (s *Store) PlexImpact(ctx context.Context, ids ...string) (PlexImpact, error) {
+	var out PlexImpact
+	for _, id := range ids {
+		var playlists, picks int
+		if err := s.DB.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM destinations WHERE connection_id=?),(SELECT count(*) FROM manual_matches WHERE connection_id=?)", id, id).Scan(&playlists, &picks); err != nil {
+			return out, err
+		}
+		out.Playlists += playlists
+		out.Picks += picks
+	}
+	return out, nil
+}
+
+// AccountPlexIDs lists the servers connected through the Plex account sign-in.
+func (s *Store) AccountPlexIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT id FROM plex_connections WHERE account_id=1 ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

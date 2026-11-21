@@ -268,6 +268,7 @@ type plexServerView struct {
 	ScannedAt        int64
 	Movies, Episodes int
 	Destinations     int
+	Picks            int
 }
 type plexPageView struct {
 	Servers []plexServerView
@@ -292,6 +293,11 @@ func (a *App) plexServers(ctx context.Context, list []plexView) (*plexPageView, 
 				sv.Destinations++
 			}
 		}
+		impact, err := a.store.PlexImpact(ctx, s.ID)
+		if err != nil {
+			return nil, err
+		}
+		sv.Picks = impact.Picks
 		v.Servers = append(v.Servers, sv)
 	}
 	return v, nil

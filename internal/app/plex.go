@@ -265,6 +265,17 @@ func (a *App) plexDelete(w http.ResponseWriter, r *http.Request) {
 		a.renderPlex(w, r, 400, "Type the connection name exactly to remove it.", "")
 		return
 	}
+	// Removing a server deletes the playlist links Ordarr keeps for it, so that needs its own,
+	// explicit yes. (The playlists stay in Plex; Ordarr just stops managing them.)
+	impact, err := a.store.PlexImpact(r.Context(), c.ID)
+	if err != nil {
+		a.plexFailure(w, r, err)
+		return
+	}
+	if impact.Playlists > 0 && r.PostForm.Get("confirm_playlists") != "yes" {
+		a.renderPlex(w, r, 400, "Tick the box to confirm: removing "+c.Name+" makes Ordarr stop managing "+plural(impact.Playlists, "playlist", "playlists")+". They stay in Plex.", "")
+		return
+	}
 	if err = a.store.DeletePlexConnection(r.Context(), c.ID, revision); err != nil {
 		a.plexFailure(w, r, err)
 		return
