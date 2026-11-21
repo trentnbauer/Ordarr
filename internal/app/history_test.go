@@ -113,7 +113,7 @@ func TestCollectionTabsAreSplitLogicallyAndOldLinksResolve(t *testing.T) {
 		has   []string
 		hasnt []string
 	}{
-		{"collection", []string{"Where it comes from", "Delete this collection", "Duplicate as an editable copy"}, []string{"Recent activity", "What's happening", "Not published yet"}},
+		{"collection", []string{"Where it comes from", "Delete this collection", "Make an editable copy"}, []string{"Recent activity", "What's happening", "Not published yet"}},
 		{"target", []string{"Not published yet"}, []string{"Delete this collection", "Recent activity", "What's happening"}},
 		{"downloads", []string{"What's happening", "Connect Sonarr or Radarr"}, []string{"Delete this collection", "Recent activity", "Not published yet"}},
 		{"history", []string{"Recent activity"}, []string{"Delete this collection", "What's happening", "Not published yet"}},

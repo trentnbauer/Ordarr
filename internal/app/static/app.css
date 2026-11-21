@@ -486,3 +486,8 @@ fieldset.field>legend{margin-bottom:4px}
 .fields-2{align-items:end}
 .seg{flex-wrap:wrap}
 .default-form{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+/* review fixes: read-only fields, labels that must fit, sidebar name */
+input:disabled.input,textarea:disabled.input{background:transparent;border-color:transparent;color:inherit;resize:none;opacity:.85}
+.seg-opt{white-space:normal;text-align:center;justify-content:center;line-height:1.2}
+.side-foot{flex-wrap:wrap}
+.side-foot .who{flex:1 1 100%}

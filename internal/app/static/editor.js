@@ -106,3 +106,15 @@ if (modal) {
   const first = modal.querySelector('.modal-bar input:not([type=hidden])') || modal.querySelector('.modal-body input:not([type=hidden]),.modal-body textarea');
   if (first && !location.hash) first.focus();
 }
+
+// Closing the add dialog goes back to where it was opened from, not always to Collections.
+document.querySelectorAll('[data-close]').forEach(link => link.addEventListener('click', event => {
+  if (!document.referrer) return;
+  const from = new URL(document.referrer);
+  if (from.origin !== location.origin || from.pathname.endsWith('/add') || from.pathname.includes('/login')) return;
+  event.preventDefault();
+  location.assign(from.href);
+}));
+
+// The collections filter applies as soon as it is changed.
+document.querySelectorAll('.listcol-search select').forEach(select => select.addEventListener('change', () => select.form.submit()));
