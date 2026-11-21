@@ -55,7 +55,7 @@ func syncFailureMessage(err error, server string) string {
 // carry one generic sentence, which is replaced by an honest version of the same thing.
 func syncText(message string) string {
 	if message == legacySyncFailure {
-		return "This sync didn't finish (it was recorded before Ordarr kept the reason). The playlist in Plex was left as it was. Press Retry; if it fails again the reason is shown here."
+		return "This older sync didn't finish, and no reason was kept for it. The playlist in Plex was left as it was."
 	}
 	return message
 }

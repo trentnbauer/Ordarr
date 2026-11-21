@@ -25,6 +25,19 @@ func (a *App) scheduleDestinations(ctx context.Context) {
 		}
 	}
 }
+
+// recordSyncFailure logs a failed sync. Ordarr being stopped mid-sync (its context was cancelled) is
+// not a failed sync: the job is picked up again on the next start, so recording it made one job show
+// a failure and then a success.
+func (a *App) recordSyncFailure(ctx context.Context, d store.Destination, job string, err error, desired []string) {
+	if err == nil || errors.Is(ctx.Err(), context.Canceled) {
+		return
+	}
+	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	a.store.RecordSync(failureCtx, d, job, "failed", syncFailureMessage(err, a.serverNameFor(failureCtx, d)), desired)
+}
+
 func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 	target := j.Target
 	approvedRun := int64(0)
@@ -44,13 +57,7 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 		return errors.New("Destination is paused")
 	}
 	var desired []string
-	defer func() {
-		if ret != nil {
-			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			a.store.RecordSync(failureCtx, d, j.ID, "failed", syncFailureMessage(ret, a.serverNameFor(failureCtx, d)), desired)
-		}
-	}()
+	defer func() { a.recordSyncFailure(ctx, d, j.ID, ret, desired) }()
 	c, err := a.store.PlexConnection(ctx, d.ConnectionID)
 	if err != nil {
 		return err
@@ -72,7 +79,8 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 		return err
 	}
 	clientID := result.Credentials.Device.ClientID
-	if err = a.scanCatalogue(ctx, store.Job{ID: j.ID, Target: c.ID}); err != nil {
+	// The scan counts library items; that must not become this job's item count (the playlist length does).
+	if err = a.scanWithRetry(ctx, store.Job{Target: c.ID}); err != nil {
 		return err
 	}
 	collection, err := a.store.Collection(ctx, d.CollectionID)
@@ -159,6 +167,7 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 	if err = a.store.CompleteSync(ctx, d, collection.Revision, desired); err != nil {
 		return err
 	}
+	a.store.JobProgress(ctx, j.ID, len(desired))
 	a.polishPlaylist(ctx, c, token, d, collection)
 	return a.store.RecordSync(ctx, d, j.ID, "succeeded", "Exact ordered sequence verified; unrelated playlists and source media were untouched.", desired)
 }
