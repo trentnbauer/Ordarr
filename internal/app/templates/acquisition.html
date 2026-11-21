@@ -1,7 +1,4 @@
-{{define "acquisition"}}{{$v:=.ArrPage}}{{$root:=.}}<div class="columns"><nav class="listcol" aria-label="Sonarr and Radarr instances">
-<div class="listcol-head"><div class="row"><span>{{plural (len $v.Items) "instance" "instances"}}</span><a href="/settings/acquisition?new=1">+ Connect</a></div></div>
-{{range $v.Items}}<a class="item" href="/settings/acquisition?id={{.ID}}" {{if .Active}}aria-current="page"{{end}}><span class="row"><span class="t">{{.Name}}</span><span class="k">{{.Kind}}</span></span><span class="s">{{.Host}}</span><span class="s{{if .Warn}} warn{{end}}">{{.Status}}</span></a>{{end}}
-<p class="listcol-foot">Requests only make media playable once Plex picks up the files.</p></nav>
+{{define "acquisition"}}{{$v:=.ArrPage}}{{$root:=.}}<div class="columns">{{template "conn-list" .}}
 <section class="detail" aria-labelledby="page-title">{{with $v.Selected}}{{$d:=.}}{{$c:=.Connection}}
 <div class="head"><div class="grow"><h1 id="page-title">{{$c.Name}}</h1><p class="sub">{{$c.BaseURL}} · {{if eq $c.Kind "sonarr"}}Sonarr{{else}}Radarr{{end}} {{$c.Snapshot.Version}} · checked {{ago $c.CheckedAt}}</p></div>
 <div class="actions"><form class="inline-form" method="post" action="/settings/acquisition/{{$c.ID}}/refresh"><input type="hidden" name="csrf" value="{{$root.CSRF}}"><button class="btn">Refresh</button></form><a class="btn" href="#edit-connection">Edit connection</a></div></div>

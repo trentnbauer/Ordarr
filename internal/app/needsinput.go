@@ -62,6 +62,11 @@ func (a *App) inputCount(ctx context.Context, o *overview, values map[string]ava
 			n++
 		}
 	}
+	for _, c := range o.Arr {
+		if !arrReady(c) {
+			n++
+		}
+	}
 	return n, nil
 }
 
@@ -104,6 +109,11 @@ func (a *App) needsInput(ctx context.Context, o *overview, values map[string]ava
 	for _, p := range o.Plex {
 		if p.LastError != "" {
 			v.Connections = append(v.Connections, p.Name+": "+p.LastError)
+		}
+	}
+	for _, c := range o.Arr {
+		if !arrReady(c) {
+			v.Connections = append(v.Connections, c.Name+": choose a quality profile and root folder")
 		}
 	}
 	v.Total = len(v.Picks) + len(v.NotFound) + len(v.Sources) + len(v.Failed) + len(v.Approvals) + v.Requests + len(v.Connections)

@@ -430,3 +430,12 @@ fieldset.field>legend{margin-bottom:4px}
 .side-ver a{color:inherit}
 .side-ver a:hover{color:var(--color-accent-700)}
 @media (max-width:900px){.side-ver{order:5;width:100%;padding-top:0}}
+
+.listcol .item.placeholder .t{color:var(--color-neutral-700)}
+.listcol .item.placeholder{border-left:2px dashed var(--color-neutral-400,#bbb)}
+.connect-menu{position:relative;display:inline-block}
+.connect-menu summary{list-style:none;cursor:pointer;color:var(--color-accent-700);text-decoration:underline}
+.connect-menu summary::-webkit-details-marker{display:none}
+.connect-menu .menu{position:absolute;right:0;top:100%;z-index:5;background:var(--color-surface,#fff);border:var(--hair,1px solid #ccc);min-width:160px;display:flex;flex-direction:column}
+.connect-menu .menu a{padding:6px 10px;text-decoration:none;color:var(--color-text)}
+.connect-menu .menu a:hover{background:var(--color-neutral-200)}
