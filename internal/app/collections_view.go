@@ -293,7 +293,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	v.StatusLine, v.StatusWarn = statusLine(v, len(c.Entries))
 	v.StatusCounts = statusCounts(v.Rows)
 	for _, d := range v.Destinations {
-		v.SyncFailed = v.SyncFailed || d.HasLatest && (d.Latest.State == "failed" || d.Latest.State == "pending")
+		v.SyncFailed = v.SyncFailed || o.syncNeedsYou(d.ID)
 	}
 	switch tab {
 	case "target", "history":
