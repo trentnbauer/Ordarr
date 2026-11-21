@@ -25,6 +25,7 @@ func (a *App) StartBackground(ctx context.Context) error {
 			a.scheduleDestinations(ctx)
 			a.scheduleSources(ctx)
 			a.scheduleAcquisition(ctx)
+			a.scheduleAliases(ctx)
 			if ctx.Err() != nil {
 				return
 			}
@@ -71,6 +72,8 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 		err = a.automaticAcquisition(ctx, j.Target)
 	case "acquire":
 		err = a.executeAcquisition(ctx, j.Target)
+	case "aliases":
+		err = a.resolveAliases(ctx)
 	case "cover":
 		err = a.fetchCover(ctx, j)
 	case "source":

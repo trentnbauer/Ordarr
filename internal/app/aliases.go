@@ -27,8 +27,11 @@ type aliasCache struct {
 // aliasStamp changes whenever an instance is added, removed or refreshed (a refresh re-reads its library).
 func (a *App) aliasStamp(ctx context.Context) (int64, error) {
 	var n, sum int64
-	err := a.store.DB.QueryRowContext(ctx, "SELECT count(*), coalesce(sum(checked_at),0) FROM arr_connections").Scan(&n, &sum)
-	return sum*100 + n, err
+	if err := a.store.DB.QueryRowContext(ctx, "SELECT count(*), coalesce(sum(checked_at),0) FROM arr_connections").Scan(&n, &sum); err != nil {
+		return 0, err
+	}
+	looked, err := a.store.AliasStamp(ctx)
+	return sum*100 + n + looked*7, err
 }
 
 // aliases returns the ID aliases known from the connected Radarr/Sonarr libraries. They let a
@@ -49,12 +52,16 @@ func (a *App) aliases(ctx context.Context) (aliasIndex, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	idx := buildAliases(conns)
+	stored, err := a.store.Aliases(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	idx := buildAliases(conns, stored)
 	a.aliasCached = &aliasCache{stamp: stamp, value: idx}
 	return idx, stamp, nil
 }
 
-func buildAliases(conns []store.ArrConnection) aliasIndex {
+func buildAliases(conns []store.ArrConnection, stored []store.StoredAlias) aliasIndex {
 	idx := aliasIndex{}
 	for _, c := range conns {
 		kind := "movie"
@@ -78,6 +85,28 @@ func buildAliases(conns []store.ArrConnection) aliasIndex {
 			info := aliasInfo{IDs: ids, Title: m.Title}
 			for provider, id := range ids {
 				idx[kind+"|"+provider+":"+id] = info
+			}
+		}
+	}
+	// Titles that are not in a library yet were looked up in Radarr/Sonarr and remembered.
+	for _, l := range stored {
+		if !l.Found {
+			continue
+		}
+		ids := map[string]string{}
+		for provider, v := range map[string]string{"imdb": l.IMDB, "tmdb": l.TMDB, "tvdb": l.TVDB} {
+			if v != "" {
+				ids[provider] = v
+			}
+		}
+		if len(ids) < 2 {
+			continue
+		}
+		info := aliasInfo{IDs: ids, Title: l.Title}
+		for provider, id := range ids {
+			key := l.Kind + "|" + provider + ":" + id
+			if _, ok := idx[key]; !ok {
+				idx[key] = info
 			}
 		}
 	}

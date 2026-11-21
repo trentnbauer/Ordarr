@@ -15,7 +15,7 @@ func TestAliasesFromRadarrAndSonarrDriveMatching(t *testing.T) {
 	al := buildAliases([]store.ArrConnection{
 		{Kind: "radarr", Snapshot: arr.Snapshot{Media: []arr.Media{{TMDB: 1724, IMDB: "tt0800080", Title: "The Incredible Hulk"}, {TMDB: 5}}}},
 		{Kind: "sonarr", Snapshot: arr.Snapshot{Media: []arr.Media{{TVDB: 443358, TMDB: 9, IMDB: "tt99", Title: "Eyes of Wakanda"}}}},
-	})
+	}, nil)
 	hulk := store.Entry{Kind: "movie", Provider: "tmdb", ExternalID: "1724", Title: "The Incredible Hulk"}
 	id := identityFor(hulk, al)
 	if id.Aliases["imdb"] != "tt0800080" || len(id.Aliases) != 1 || id.Aliases["tmdb"] != "" {
