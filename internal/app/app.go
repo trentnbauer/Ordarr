@@ -40,6 +40,8 @@ type Config struct {
 	Deployment       ComposeDeployment
 	Address, DataDir string
 	SecureCookies    bool
+	// BasePath is the URL path prefix served under, e.g. /ordarr; empty = root.
+	BasePath string
 	// CommunityRepository is a public GitHub owner/repo of collection files;
 	// empty disables the community catalogue.
 	CommunityRepository, CommunityBranch string
@@ -67,6 +69,11 @@ func LoadConfig() (Config, error) {
 	if v := os.Getenv("ORDARR_DATA_DIR"); v != "" {
 		c.DataDir = v
 	}
+	bp, err := normalizeBasePath(os.Getenv("ORDARR_BASE_URL"))
+	if err != nil {
+		return c, err
+	}
+	c.BasePath = bp
 	if _, _, err := net.SplitHostPort(c.Address); err != nil {
 		return c, err
 	}
@@ -166,7 +173,7 @@ func randomToken() string {
 	return hex.EncodeToString(b[:])
 }
 func (a *App) cookie(w http.ResponseWriter, name, value string, age int) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", HttpOnly: true, Secure: a.config.SecureCookies, SameSite: http.SameSiteStrictMode, MaxAge: age})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: a.config.BasePath + "/", HttpOnly: true, Secure: a.config.SecureCookies, SameSite: http.SameSiteStrictMode, MaxAge: age})
 }
 func (a *App) Handler() http.Handler {
 	m := http.NewServeMux()
@@ -240,7 +247,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/jellyfin/{id}/scan", a.protected(a.queueJellyfinScan))
 	m.HandleFunc("GET /collections/{id}/jellyfin/{connection}", a.protected(a.jellyfinMatches))
 	m.HandleFunc("POST /collections/{id}/jellyfin/{connection}", a.protected(a.jellyfinManualMatch))
-	return a.security(m)
+	return withBasePath(a.config.BasePath, a.security(m))
 }
 func (a *App) security(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
