@@ -1,7 +1,4 @@
-{{define "jellyfin"}}{{$v:=.JellyfinPage}}{{$root:=.}}<div class="columns"><nav class="listcol" aria-label="Jellyfin connections">
-<div class="listcol-head"><div class="row"><span>{{plural (len $v.Connections) "connection" "connections"}}</span><a href="/settings/jellyfin?new=1">+ Connect</a></div></div>
-{{range $v.Connections}}<a class="item" href="/settings/jellyfin?id={{.ID}}" {{if and $v.Selected (eq .ID $v.Selected.ID)}}aria-current="page"{{end}}><span class="t">{{.Name}}</span><span class="s">{{.BaseURL}}</span><span class="s">Matching only</span></a>{{end}}
-<p class="listcol-foot">Ordarr can check your collections against Jellyfin. Publishing playlists to Jellyfin isn't available yet.</p></nav>
+{{define "jellyfin"}}{{$v:=.JellyfinPage}}{{$root:=.}}<div class="columns">{{template "conn-list" .}}
 <section class="detail" aria-labelledby="page-title">{{if $v.Selected}}{{$c:=$v.Selected}}
 <div class="head"><div class="grow"><h1 id="page-title">{{$c.Name}}</h1><p class="sub">{{$c.BaseURL}} · {{$c.Snapshot.ServerName}} {{$c.Snapshot.Version}} · as user {{$c.Snapshot.UserName}} · checked {{$c.CheckedAt}} UTC</p></div>
 <div class="actions"><form class="inline-form" method="post" action="/settings/jellyfin/{{$c.ID}}/check"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{$c.Revision}}"><button class="btn">Recheck</button></form><form class="inline-form" method="post" action="/settings/jellyfin/{{$c.ID}}/scan"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn">Scan now</button></form></div></div>

@@ -3,87 +3,87 @@ package app
 import (
 	"context"
 	"net/http"
+	"strconv"
 )
 
-// serviceCard is one service on the Connections page.
-type serviceCard struct {
-	Name, State  string
-	Warn         bool
-	Items        []string
-	Manage, Add  string
-	AddLabel     string
-	Optional     bool
-	Consequences string // what happens without it
+// connItem is one row of the shared connections list: a connected service, or a placeholder
+// for one that isn't connected yet (so a missing Radarr is visible, not implied).
+type connItem struct {
+	Name, Kind, Host, Status, Href string
+	Warn, Active, Placeholder      bool
 }
 
-type connectionsView struct{ Cards []serviceCard }
+type connListView struct {
+	Items   []connItem
+	Connect []connLink // "+ Connect" choices
+}
+type connLink struct{ Label, Href string }
 
-// connectionCards builds one card per service. Plex, Sonarr and Radarr are always listed, so a
-// missing Radarr is visible instead of being implied by "Sonarr / Radarr".
-func connectionCards(o *overview) []serviceCard {
-	plexCard := serviceCard{Name: "Plex", Manage: "/settings/plex", Add: "/settings/plex", AddLabel: "Connect Plex"}
+// connList builds the list shown on the left of every connection page. active is the ID of
+// the selected connection ("" for none; the Plex page passes "plex").
+func connList(o *overview, active string) *connListView {
+	v := &connListView{Connect: []connLink{
+		{"Plex server", "/settings/plex#add-server"}, {"Sonarr", "/settings/acquisition?new=1"},
+		{"Radarr", "/settings/acquisition?new=1"}, {"Jellyfin", "/settings/jellyfin?new=1"}}}
 	if len(o.Plex) == 0 {
-		plexCard.State, plexCard.Warn = "Not connected", true
-		plexCard.Consequences = "Needed to publish playlists and to see what you can already watch."
-	} else {
-		plexCard.State = "Connected"
-		plexCard.AddLabel = "Add another server"
-		for _, p := range o.Plex {
-			line := p.Name
-			switch {
-			case p.LastError != "":
-				line += " · needs attention: " + p.LastError
-				plexCard.State, plexCard.Warn = "Needs attention", true
-			case !p.AccountLinked:
-				line += " · read-only (added by URL and token; can't publish)"
-			}
-			plexCard.Items = append(plexCard.Items, line)
-		}
+		v.Items = append(v.Items, connItem{Name: "Plex", Kind: "Media server", Status: "Not connected · needed to publish playlists", Warn: true, Href: "/settings/plex#add-server", Placeholder: true})
 	}
-	cards := []serviceCard{plexCard}
-	kinds := map[string][]string{}
+	for _, p := range o.Plex {
+		item := connItem{Name: p.Name, Kind: "Plex", Host: hostOf(p.BaseURL), Href: "/settings/plex#server-" + p.ID, Active: active == "plex"}
+		switch {
+		case p.LastError != "":
+			item.Status, item.Warn = "Last check failed", true
+		case p.AccountLinked:
+			item.Status = "Connected · can publish"
+		default:
+			item.Status = "Connected · read-only"
+		}
+		v.Items = append(v.Items, item)
+	}
+	for _, j := range o.Jellyfin {
+		v.Items = append(v.Items, connItem{Name: j.Name, Kind: "Jellyfin", Host: hostOf(j.BaseURL), Status: "Matching only", Href: "/settings/jellyfin?id=" + j.ID, Active: active == j.ID})
+	}
+	have := map[string]bool{}
 	for _, c := range o.Arr {
-		line := c.Name
-		if !arrReady(c) {
-			line += " · choose a quality profile and root folder"
-		}
-		kinds[c.Kind] = append(kinds[c.Kind], line)
+		have[c.Kind] = true
 	}
-	arrCard := func(kind, name, what string, other bool) serviceCard {
-		card := serviceCard{Name: name, Manage: "/settings/acquisition", Add: "/settings/acquisition?new=1", AddLabel: "Connect " + name, Optional: true}
-		if items := kinds[kind]; len(items) > 0 {
-			card.State, card.Items, card.AddLabel = "Connected", items, "Add another "+name
-			return card
+	for _, c := range o.Arr {
+		queued, downloading := queueCounts(c.Snapshot)
+		item := connItem{Name: c.Name, Kind: map[string]string{"sonarr": "Sonarr", "radarr": "Radarr"}[c.Kind], Host: hostOf(c.BaseURL), Href: "/settings/acquisition?id=" + c.ID, Active: active == c.ID}
+		switch {
+		case !arrReady(c):
+			item.Status, item.Warn = "Choose a quality profile and root folder", true
+		case downloading > 0:
+			item.Status = strconv.Itoa(downloading) + " downloading"
+		case queued > 0:
+			item.Status = strconv.Itoa(queued) + " queued"
+		default:
+			item.Status = "Connected"
 		}
-		card.State = "Not connected"
-		card.Consequences = "Missing " + what + " won't be downloaded."
-		card.Warn = other // flagged when the other downloader is set up, so the gap is clear
-		return card
+		v.Items = append(v.Items, item)
 	}
-	cards = append(cards,
-		arrCard("sonarr", "Sonarr", "TV episodes", len(kinds["radarr"]) > 0),
-		arrCard("radarr", "Radarr", "movies", len(kinds["sonarr"]) > 0))
-	jf := serviceCard{Name: "Jellyfin", Manage: "/settings/jellyfin", Add: "/settings/jellyfin?new=1", AddLabel: "Connect Jellyfin", Optional: true}
-	if len(o.Jellyfin) == 0 {
-		jf.State = "Not connected"
-		jf.Consequences = "Optional. Jellyfin can only check availability for now; it can't publish playlists."
-	} else {
-		jf.State = "Connected · read-only"
-		jf.AddLabel = "Add another server"
-		for _, j := range o.Jellyfin {
-			jf.Items = append(jf.Items, j.Name)
+	// A missing downloader is shown plainly, and flagged when the other one is set up.
+	for _, k := range []struct{ kind, name, what string }{{"sonarr", "Sonarr", "TV episodes"}, {"radarr", "Radarr", "movies"}} {
+		if !have[k.kind] {
+			other := map[string]string{"sonarr": "radarr", "radarr": "sonarr"}[k.kind]
+			v.Items = append(v.Items, connItem{Name: k.name, Kind: "Downloader", Status: "Not connected · missing " + k.what + " won't be downloaded", Warn: have[other], Href: "/settings/acquisition?new=1", Placeholder: true})
 		}
 	}
-	return append(cards, jf)
+	return v
 }
 
+// connectionsPage opens the first connection; the list on the left shows the rest.
 func (a *App) connectionsPage(w http.ResponseWriter, r *http.Request) {
 	o, err := a.loadOverview(r.Context())
 	if err != nil {
 		a.fail(w, "overview failed")
 		return
 	}
-	a.render(w, r, 200, page{Title: "Connections", Mode: "connections", Connections: &connectionsView{Cards: connectionCards(o)}})
+	target := "/settings/plex"
+	if items := connList(o, "").Items; len(items) > 0 {
+		target = items[0].Href
+	}
+	http.Redirect(w, r, target, 303)
 }
 
 // wizardActive: a fresh install (no collections yet) that hasn't finished the setup wizard.

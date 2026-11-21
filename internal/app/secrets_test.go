@@ -73,7 +73,7 @@ func TestStoredCredentialsNeverReachResponses(t *testing.T) {
 			}
 		}
 	}
-	paths := []string{"/", "/collections/" + id, "/needs-input", "/connections", "/welcome", "/jobs", "/settings", "/settings/export.env", "/settings/plex", "/settings/plex/plex-1/libraries/1/media", "/settings/jellyfin", "/settings/jellyfin?id=jf-1", "/settings/jellyfin?new=1", "/settings/acquisition", "/settings/acquisition?id=sonarr", "/settings/acquisition?id=radarr", "/settings/acquisition?new=1", "/collections/" + id + "/matches/plex-1", "/collections/" + id + "/jellyfin/jf-1", "/collections/" + id + "/export?format=yaml", "/collections/" + id + "/export?format=json", "/add", "/add?source=paste", "/add?source=url"}
+	paths := []string{"/", "/collections/" + id, "/needs-input", "/welcome", "/jobs", "/settings", "/settings/export.env", "/settings/plex", "/settings/plex/plex-1/libraries/1/media", "/settings/jellyfin", "/settings/jellyfin?id=jf-1", "/settings/jellyfin?new=1", "/settings/acquisition", "/settings/acquisition?id=sonarr", "/settings/acquisition?id=radarr", "/settings/acquisition?new=1", "/collections/" + id + "/matches/plex-1", "/collections/" + id + "/jellyfin/jf-1", "/collections/" + id + "/export?format=yaml", "/collections/" + id + "/export?format=json", "/add", "/add?source=paste", "/add?source=url"}
 	for _, tab := range []string{"order", "advanced", "source", "publishing", "history", "settings"} {
 		paths = append(paths, "/collections/"+id+"?tab="+tab)
 	}

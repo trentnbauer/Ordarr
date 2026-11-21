@@ -1,8 +1,8 @@
-{{define "plex-settings"}}{{$root:=.}}<section class="detail" aria-labelledby="page-title">
+{{define "plex-settings"}}{{$root:=.}}<div class="columns">{{template "conn-list" .}}<section class="detail" aria-labelledby="page-title">
 <div class="head"><div class="grow"><h1 id="page-title">Plex</h1><p class="sub">Servers Ordarr can read from and publish playlists to.</p></div><div class="actions"><a class="btn btn-primary" href="#add-server">+ Add server</a></div></div>
 {{template "messages" .}}
 <div class="panes"><div class="pane pad">
-{{range .PlexPage.Servers}}<div class="stack plex-connection" data-connection-id="{{.ID}}"><div class="actions"><h2 class="grow">{{.Name}}</h2><span class="tag{{if .LastError}} warn{{end}}">{{if .LastError}}Last check failed{{else if .AccountLinked}}Connected · can publish{{else}}Connected · read-only{{end}}</span></div>
+{{range .PlexPage.Servers}}<div class="stack plex-connection" id="server-{{.ID}}" data-connection-id="{{.ID}}"><div class="actions"><h2 class="grow">{{.Name}}</h2><span class="tag{{if .LastError}} warn{{end}}">{{if .LastError}}Last check failed{{else if .AccountLinked}}Connected · can publish{{else}}Connected · read-only{{end}}</span></div>
 {{if .LastError}}<p class="alert" role="alert">Last recheck failed: {{.LastError}} Showing the last good library list, which may be out of date.</p>{{end}}
 <dl class="kv ruled"><dt>Address</dt><dd>{{.BaseURL}}</dd><dt>Server</dt><dd>{{.ServerName}} · {{.ServerVersion}}</dd><dt>Connected by</dt><dd>{{if .AccountLinked}}Plex sign-in{{else}}URL and token (stored encrypted, never shown){{end}}</dd><dt>Last full scan</dt><dd>{{if .Ready}}{{ago .ScannedAt}} · {{number .Movies}} movies · {{number .Episodes}} episodes{{else}}Not scanned yet{{end}}</dd><dt>Last check</dt><dd>{{ago .Checked}}</dd>{{if .Destinations}}<dt>Playlists</dt><dd>{{plural .Destinations "Ordarr playlist" "Ordarr playlists"}}</dd>{{end}}</dl>
 <p class="kicker">Libraries</p><div class="rows">{{$id:=.ID}}{{range .Libraries}}<div class="r"><span>{{.Title}}</span><span class="meta">{{if eq .Kind "show"}}Shows{{else if eq .Kind "movie"}}Movies{{else}}{{.Kind}}{{end}}{{if .Browsable}} · <a href="/settings/plex/{{$id}}/libraries/{{.Key}}/media">Browse {{.Title}}</a>{{end}}</span></div>{{else}}<p class="note">No libraries were returned for this connection.</p>{{end}}</div>
@@ -17,4 +17,4 @@
 <div class="field"><label for="plex-token">Token</label><input class="input" id="plex-token" type="password" name="token" maxlength="4096" required autocomplete="off" spellcheck="false"></div>
 <label class="check"><input type="checkbox" name="allow_http" value="yes"> Allow plain HTTP on this trusted network</label>
 <p class="note">Tokens are stored encrypted and never shown again. Use the server address only, without paths. Redirects and link-local addresses are refused.</p><div><button class="btn btn-ink">Validate and save connection</button></div></form>
-</div></div></section>{{end}}
+</div></div></section></div>{{end}}

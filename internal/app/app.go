@@ -135,7 +135,7 @@ type page struct {
 	Detail                                               *collectionView
 	Add                                                  *addView
 	NeedsInput                                           *inputView
-	Connections                                          *connectionsView
+	ConnList                                             *connListView
 	Welcome                                              *welcomeView
 	Activity                                             *activityView
 	Preferences                                          *settingsView
@@ -318,6 +318,25 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, p page)
 			a.fail(w, "navigation state failed")
 			return
 		}
+	}
+	switch p.Mode {
+	case "plex", "jellyfin", "acquisition":
+		// One list of every connection on the left of all three pages.
+		o, err := a.loadOverview(r.Context())
+		if err != nil {
+			a.fail(w, "navigation state failed")
+			return
+		}
+		active := ""
+		switch {
+		case p.Mode == "plex":
+			active = "plex"
+		case p.JellyfinPage != nil && p.JellyfinPage.Selected != nil:
+			active = p.JellyfinPage.Selected.ID
+		case p.ArrPage != nil && p.ArrPage.Selected != nil:
+			active = p.ArrPage.Selected.Connection.ID
+		}
+		p.ConnList = connList(o, active)
 	}
 	var body bytes.Buffer
 	if err = a.templates.ExecuteTemplate(&body, "page.html", p); err != nil {

@@ -162,6 +162,9 @@ func connectionsSummary(o *overview) (string, bool) {
 	}
 	sonarr, radarr := false, false
 	for _, c := range o.Arr {
+		if !arrReady(c) {
+			return "Finish setup", true
+		}
 		sonarr = sonarr || c.Kind == "sonarr"
 		radarr = radarr || c.Kind == "radarr"
 	}

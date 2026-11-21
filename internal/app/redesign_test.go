@@ -301,7 +301,7 @@ func TestAccountSettingsAndDefaults(t *testing.T) {
 func TestShellPagesRender(t *testing.T) {
 	_, h := fixture(t)
 	session, csrf := setup(t, h)
-	for _, path := range []string{"/", "/needs-input", "/connections", "/welcome", "/jobs", "/settings", "/settings/plex", "/settings/jellyfin", "/settings/acquisition", "/add?source=paste", "/add?source=upload", "/add?source=url", "/import"} {
+	for _, path := range []string{"/", "/needs-input", "/welcome", "/jobs", "/settings", "/settings/plex", "/settings/jellyfin", "/settings/acquisition", "/add?source=paste", "/add?source=upload", "/add?source=url", "/import"} {
 		w := request(h, "GET", path, nil, session, csrf)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), `class="sidebar"`) {
 			t.Fatal(path, w.Code, w.Body.String())
