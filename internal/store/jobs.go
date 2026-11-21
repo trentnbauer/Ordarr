@@ -204,3 +204,11 @@ func (s *Store) ActiveJobs(ctx context.Context) (running, queued []string, err e
 	}
 	return running, queued, rows.Err()
 }
+
+// RecordFinishedJob logs something that already happened (for example the first fetch when a
+// collection is followed) so it shows in History and Activity like any other job.
+func (s *Store) RecordFinishedJob(ctx context.Context, kind, target, state, message string) error {
+	now := time.Now().Unix()
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO jobs(id,kind,target,state,message,created_at,finished_at) VALUES(?,?,?,?,?,?,?)", newID(), kind, target, state, message, now, now)
+	return err
+}

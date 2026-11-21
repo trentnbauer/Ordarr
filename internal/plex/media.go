@@ -14,7 +14,7 @@ const MediaPageSize = 50
 const MaxMediaTotal = 1000000
 
 var ErrMediaPage = errors.New("Plex returned an invalid or inconsistent media page. The last cached page was retained.")
-var ErrMediaChanged = errors.New("This Plex library changed while paging. Load its first page again before continuing.")
+var ErrMediaChanged = errors.New("Plex changed its library while Ordarr was reading it, usually because new downloads are being imported.")
 
 type MediaItem struct {
 	RatingKey       string `json:"ratingKey"`

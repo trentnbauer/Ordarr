@@ -112,7 +112,7 @@ func requestRow(r store.AcquisitionRequest, instance arrLabel) jobRow {
 func historyRows(jobs []store.Job, requests []store.AcquisitionRequest, instances map[string]arrLabel, now time.Time) []jobRow {
 	var rows []jobRow
 	for _, j := range jobs {
-		r := jobRow{When: j.CreatedAt, Kind: "Playlist sync", Routine: routineSource(j)}
+		r := jobRow{When: jobWhen(j), Kind: "Playlist sync", Routine: routineSource(j)}
 		if j.Kind == "source" {
 			r.Kind = "Source check"
 		}

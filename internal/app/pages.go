@@ -126,7 +126,7 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 		names[c.ID] = c.Name
 	}
 	for _, j := range jobs {
-		row := jobRow{When: j.CreatedAt, Kind: jobKinds[j.Kind], What: names[j.Target], Routine: routineSource(j)}
+		row := jobRow{When: jobWhen(j), Kind: jobKinds[j.Kind], What: names[j.Target], Routine: routineSource(j)}
 		if row.Kind == "" {
 			row.Kind = j.Kind
 		}
@@ -150,14 +150,14 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 			row.Result, row.Class = "Queued", "muted"
 		case "running":
 			row.Result = "Running"
-			if j.Progress > 0 {
+			if j.Progress > 0 && j.Kind != "sync" && j.Kind != "publish" {
 				row.Result += " · " + number(j.Progress) + " items"
 			}
 		case "failed":
 			row.Result, row.Class = "Failed · "+j.Message, "warn"
 		default:
 			row.Result = j.Message
-			if j.Progress > 0 {
+			if j.Progress > 0 && j.Kind != "sync" && j.Kind != "publish" { // a sync's message already says its length
 				row.Result += " · " + number(j.Progress) + " items"
 			}
 		}
@@ -682,4 +682,13 @@ func (a *App) busyStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"busy": busy, "label": label})
+}
+
+// jobWhen is the time a job is listed under: when it finished, so Activity, History and the sync
+// history on the Target tab (which records the end of a sync) agree; unfinished jobs show when they were queued.
+func jobWhen(j store.Job) int64 {
+	if j.FinishedAt > 0 {
+		return j.FinishedAt
+	}
+	return j.CreatedAt
 }

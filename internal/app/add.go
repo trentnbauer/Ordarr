@@ -324,6 +324,10 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 		var sub store.Subscription
 		sub, err = a.store.CreateSubscribedCollection(ctx, raw, policy, canonical, c, etag, modified)
 		id = sub.CollectionID
+		if err == nil {
+			// The first fetch happened just now, outside the job system: log it so History shows it.
+			a.store.RecordFinishedJob(ctx, "source", sub.ID, "succeeded", "Source applied.")
+		}
 	}
 	if errors.Is(err, store.ErrInvalid) {
 		retry(400, err)

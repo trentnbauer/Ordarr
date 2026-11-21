@@ -192,3 +192,12 @@ func (s *Store) AccountPlexIDs(ctx context.Context) ([]string, error) {
 	}
 	return ids, rows.Err()
 }
+
+// TouchPlexChecked records that the server was just reached successfully (a scan or sync used it),
+// so "last check" does not say days ago for a server Ordarr has been using all along. The settings
+// revision is not changed.
+func (s *Store) TouchPlexChecked(ctx context.Context, id string) error {
+	now := time.Now().Unix()
+	_, err := s.DB.ExecContext(ctx, "UPDATE plex_connections SET checked_at=?,attempted_at=? WHERE id=?", now, now, id)
+	return err
+}

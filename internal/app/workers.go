@@ -79,7 +79,7 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 	case "source":
 		err = a.fetchSource(ctx, j)
 	case "scan":
-		err = a.scanCatalogue(ctx, j)
+		err = a.scanWithRetry(ctx, j)
 	case "sync", "publish":
 		err = a.syncDestination(ctx, j)
 	default:
@@ -89,6 +89,11 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 		return
 	}
 	status, message := "succeeded", "Completed"
+	if err == nil && (j.Kind == "sync" || j.Kind == "publish") {
+		if done, e := a.store.Job(ctx, j.ID); e == nil {
+			message = "Playlist up to date · " + plural(done.Progress, "item", "items") + " (Plex was scanned first)"
+		}
+	}
 	if err == nil && j.Kind == "source" {
 		// Record what the check found so routine "no changes" checks can be folded in history.
 		if sub, e := a.store.Subscription(ctx, j.Target); e == nil && sub.Message != "" {
@@ -197,7 +202,34 @@ func (a *App) scanCatalogue(ctx context.Context, j store.Job) error {
 		return err
 	}
 	complete = true
+	a.store.TouchPlexChecked(ctx, c.ID)
 	return nil
+}
+
+// scanRetries is how many times a whole scan is tried when Plex keeps changing under it.
+var (
+	scanRetries    = 3
+	scanRetryPause = 20 * time.Second
+)
+
+// scanWithRetry scans the library, starting again (after a pause) when Plex changed while it was being
+// read. That is almost always a burst of imports, so the second try normally works and nobody needs
+// to hear about the first.
+func (a *App) scanWithRetry(ctx context.Context, j store.Job) error {
+	var err error
+	for attempt := 0; attempt < scanRetries; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(attempt) * scanRetryPause):
+			}
+		}
+		if err = a.scanCatalogue(ctx, j); !errors.Is(err, plex.ErrMediaChanged) {
+			return err
+		}
+	}
+	return err
 }
 
 // listLibrary lists a library's items page by page and insists the listing is consistent (the

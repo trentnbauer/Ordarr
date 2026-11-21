@@ -48,7 +48,7 @@ func TestSyncFailureMessagesSayWhatHappenedAndWhatToDo(t *testing.T) {
 	}
 	// Failures recorded before the reason was kept are shown honestly instead of as jargon.
 	old := syncText(legacySyncFailure)
-	if strings.Contains(old, "Reconcile") || !strings.Contains(old, "Retry") || !strings.Contains(old, "left as it was") {
+	if strings.Contains(old, "Reconcile") || strings.Contains(old, "migration") || !strings.Contains(old, "no reason was kept") || !strings.Contains(old, "left as it was") {
 		t.Errorf("legacy text: %q", old)
 	}
 	if syncText("Exact ordered sequence verified.") != "Exact ordered sequence verified." {
@@ -78,7 +78,23 @@ func TestSyncFailureWordingIsShownOnActivityAndNeedsInput(t *testing.T) {
 	}
 	// The collection's Target tab shows the reason, and a legacy run reads sensibly in the history.
 	target := request(h, "GET", "/collections/"+collection+"?tab=target", nil, session, csrf).Body.String()
-	if !strings.Contains(target, "The last sync failed. Plex was changing its library") || !strings.Contains(target, "recorded before Ordarr kept the reason") || strings.Contains(target, "Reconcile") {
+	if !strings.Contains(target, "The last sync failed. Plex was changing its library") || !strings.Contains(target, "no reason was kept") || strings.Contains(target, "Reconcile") {
 		t.Error("target tab wording")
+	}
+}
+
+// The Target tab says "Retry", so it has a Retry button next to the message.
+func TestTargetTabHasARetryButtonWhenTheLastSyncFailed(t *testing.T) {
+	a, h := fixture(t)
+	session, csrf := setup(t, h)
+	ctx := context.Background()
+	a.store.SavePlexConnection(ctx, store.PlexConnection{ID: "plex-1", Name: "Home Plex", BaseURL: "https://plex.example:32400", ClientID: "c", TokenCipher: a.vault.Seal("t", "plex:plex-1:token"), MachineID: "m", ServerName: "Plex", ServerVersion: "1"}, 0)
+	collection, _ := a.store.ImportCollection(ctx, store.Collection{Title: "T", Entries: []store.Entry{{ID: "a", Kind: "movie", Title: "M", Provider: "tmdb", ExternalID: "1"}}})
+	dest, _ := a.store.CreateDestination(ctx, collection, "plex-1", "authoritative", 0)
+	d, _ := a.store.Destination(ctx, dest)
+	a.store.RecordSync(ctx, d, "j", "failed", syncFailureMessage(plex.ErrUnavailable, "Home Plex"), nil)
+	body := request(h, "GET", "/collections/"+collection+"?tab=target", nil, session, csrf).Body.String()
+	if !strings.Contains(body, `action="/destinations/`+dest+`/sync"><input type="hidden" name="csrf"`) || !strings.Contains(body, ">Retry</button>") {
+		t.Fatal("no Retry button in the failed-sync box")
 	}
 }
