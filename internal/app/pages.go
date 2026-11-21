@@ -445,11 +445,12 @@ type arrView struct {
 	Snapshot                    arr.Snapshot
 	CheckedAt                   int64
 	DailyLimit                  int
+	LimitOff                    bool
 	Exclusions                  string
 }
 
 func arrPublic(c store.ArrConnection) arrView {
-	return arrView{ID: c.ID, Kind: c.Kind, Name: c.Name, BaseURL: c.BaseURL, ProfileID: c.ProfileID, RootID: c.RootID, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: c.CheckedAt, DailyLimit: c.DailyLimit, Exclusions: c.Exclusions}
+	return arrView{ID: c.ID, Kind: c.Kind, Name: c.Name, BaseURL: c.BaseURL, ProfileID: c.ProfileID, RootID: c.RootID, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: c.CheckedAt, DailyLimit: c.DailyLimit, LimitOff: c.LimitOff, Exclusions: c.Exclusions}
 }
 
 type arrListItem struct {

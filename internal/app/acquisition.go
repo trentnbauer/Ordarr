@@ -62,7 +62,7 @@ func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, _ := strconv.Atoi(r.PostForm.Get("limit"))
-	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, limit, r.PostForm.Get("exclusions")); err != nil {
+	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, limit, r.PostForm.Get("no_limit") == "yes", r.PostForm.Get("exclusions")); err != nil {
 		a.collectionError(w, err)
 		return
 	}
@@ -325,6 +325,34 @@ func (a *App) arrDefault(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
 }
 
+// requestLimits says, per instance, whether its rolling request limit is currently full.
+func (a *App) requestLimits(ctx context.Context, conns []store.ArrConnection) (map[string]limitState, error) {
+	out := map[string]limitState{}
+	since := time.Now().Add(-24 * time.Hour)
+	for _, c := range conns {
+		if c.LimitOff {
+			continue
+		}
+		used, err := a.store.AttemptsSince(ctx, c.ID, since)
+		if err != nil {
+			return nil, err
+		}
+		l := limitState{Used: used, Limit: c.DailyLimit}
+		if used >= c.DailyLimit {
+			oldest, err := a.store.OldestAttemptSince(ctx, c.ID, since)
+			if err != nil {
+				return nil, err
+			}
+			l.Blocked, l.Opens = true, oldest+int64(24*time.Hour/time.Second)
+		}
+		out[c.ID] = l
+	}
+	return out, nil
+}
+
+// unlimitedPerRun is how many titles one automatic pass requests when the request limit is off.
+const unlimitedPerRun = 200
+
 // arrReady reports whether a connection has somewhere to send requests.
 func arrReady(c store.ArrConnection) bool { return c.ProfileID > 0 && c.RootID > 0 }
 
@@ -399,6 +427,12 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	// With the limit off there is still a ceiling per run, so one pass over a huge backlog stays
+	// short; the next hourly run carries on.
+	runCap := c.DailyLimit
+	if c.LimitOff {
+		runCap = unlimitedPerRun
+	}
 	proposed := 0
 	for _, b := range bindings {
 		collection, err := a.store.Collection(ctx, b[0])
@@ -430,7 +464,7 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			if r, seen := known[c.ID+"/"+strconv.Itoa(providerID)]; seen && r.State == "failed" {
 				continue
 			}
-			if proposed >= c.DailyLimit {
+			if proposed >= runCap {
 				return nil
 			}
 			item, err := arr.New().Lookup(ctx, conn, providerID)

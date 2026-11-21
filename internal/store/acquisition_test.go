@@ -21,7 +21,7 @@ func TestAcquisitionOptInBudgetDedupExclusionsAndRecovery(t *testing.T) {
 	if c.RequireApproval || c.DailyLimit != 5 {
 		t.Fatal("unsafe defaults", c)
 	}
-	if err = s.ArrPolicy(ctx, c.ID, c.Revision, 1, "99"); err != nil {
+	if err = s.ArrPolicy(ctx, c.ID, c.Revision, 1, false, "99"); err != nil {
 		t.Fatal(err)
 	}
 	c, _ = s.ArrConnection(ctx, c.ID)

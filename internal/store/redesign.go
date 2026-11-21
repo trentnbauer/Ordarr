@@ -248,6 +248,14 @@ func (s *Store) AttemptsSince(ctx context.Context, connection string, since time
 	return n, err
 }
 
+// OldestAttemptSince is when the earliest request still counted against the rolling limit was made
+// (0 when none): the limit frees up 24 hours after it.
+func (s *Store) OldestAttemptSince(ctx context.Context, connection string, since time.Time) (int64, error) {
+	var t int64
+	err := s.DB.QueryRowContext(ctx, "SELECT coalesce(min(created_at),0) FROM acquisition_attempts WHERE connection_id=? AND created_at>=?", connection, since.Unix()).Scan(&t)
+	return t, err
+}
+
 // UpdateArrConnection changes a service's label, address and key after the
 // caller has validated the new address against the same service kind.
 func (s *Store) UpdateArrConnection(ctx context.Context, c ArrConnection, revision int) error {

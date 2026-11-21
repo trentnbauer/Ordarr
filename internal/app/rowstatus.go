@@ -14,6 +14,13 @@ import (
 )
 
 // rowStatus says what is happening to one entry that is not playable yet.
+// limitState is where a Sonarr/Radarr instance stands against its rolling request limit.
+type limitState struct {
+	Blocked     bool  // the limit is reached: requests wait until it frees up
+	Opens       int64 // when the oldest counted request ages out of the 24 hours
+	Used, Limit int
+}
+
 type rowStatus struct {
 	Label, Detail string
 	Warn          bool
@@ -27,6 +34,9 @@ const (
 	statusPlexScan  = "Waiting for Plex scan"
 	statusNotFound  = "Not found in any downloader"
 	statusLookup    = "Looking up its ID"
+	statusSending   = "Being sent"
+	statusLimit     = "Waiting for the request limit"
+	statusApproval  = "Waiting for your approval"
 	statusNotAsked  = "Not requested"
 	statusAuto      = "Will be requested automatically"
 	statusPick      = "Needs a pick"
@@ -34,7 +44,7 @@ const (
 
 // missingStatus derives the status of a missing entry from data Ordarr already holds: the last
 // Sonarr/Radarr snapshot (library and queue) and its own request log. Nothing is fetched here.
-func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool, chosen map[string]bool, al aliasIndex) rowStatus {
+func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool, chosen map[string]bool, al aliasIndex, limits map[string]limitState) rowStatus {
 	if len(arrs) == 0 {
 		return rowStatus{Label: statusNotAsked, Detail: "Connect Sonarr or Radarr to download it.", rank: 1}
 	}
@@ -43,7 +53,7 @@ func missingStatus(arrs []store.ArrConnection, requests map[string]store.Acquisi
 		var s rowStatus
 		switch id, state := requestID(c, e, al); state {
 		case idOK:
-			s = statusOn(c, requests, id, autoOn && !optedOut && chosen[c.ID])
+			s = statusOn(c, requests, id, autoOn && !optedOut && chosen[c.ID], limits[c.ID])
 		case idPending: // listed by IMDb ID: its TMDB/TVDB ID is looked up in the background
 			s = rowStatus{Label: statusLookup, Detail: "This title is listed by " + strings.ToUpper(e.Provider) + " ID; Ordarr is asking " + c.Name + " for the ID it needs.", rank: 3}
 		case idNotFound:
@@ -58,7 +68,7 @@ func missingStatus(arrs []store.ArrConnection, requests map[string]store.Acquisi
 	return best
 }
 
-func statusOn(c store.ArrConnection, requests map[string]store.AcquisitionRequest, id int, auto bool) rowStatus {
+func statusOn(c store.ArrConnection, requests map[string]store.AcquisitionRequest, id int, auto bool, limit limitState) rowStatus {
 	if media, ok, err := arr.Existing(arr.Connection{Kind: c.Kind}, c.Snapshot.Media, id); ok && err == nil {
 		for _, q := range c.Snapshot.Queue {
 			if c.Kind == "radarr" && q.MovieID == media.ID || c.Kind == "sonarr" && q.SeriesID == media.ID {
@@ -74,7 +84,17 @@ func statusOn(c store.ArrConnection, requests map[string]store.AcquisitionReques
 	}
 	if r, ok := requests[c.ID+"/"+strconv.Itoa(id)]; ok {
 		switch r.State {
-		case "pending", "approved", "running", "completed", "uncertain":
+		case "pending":
+			return rowStatus{Label: statusApproval, Detail: "Approve the request to " + c.Name + " on the Sonarr / Radarr page.", Warn: true, rank: 5}
+		case "approved":
+			// Approved but not sent: either it is about to go, or the instance's request limit is full.
+			if limit.Blocked {
+				return rowStatus{Label: statusLimit, Detail: c.Name + " has already sent " + strconv.Itoa(limit.Used) + " requests in the last 24 hours (limit " + strconv.Itoa(limit.Limit) + "). This one goes out " + clock(limit.Opens) + ", or switch the limit off on the instance's page.", rank: 5}
+			}
+			return rowStatus{Label: statusSending, Detail: "Being sent to " + c.Name + ".", rank: 5}
+		case "running":
+			return rowStatus{Label: statusSending, Detail: "Being sent to " + c.Name + ".", rank: 5}
+		case "completed", "uncertain":
 			return rowStatus{Label: statusRequested, Detail: "Requested from " + c.Name + ".", rank: 5}
 		case "failed":
 			return rowStatus{Label: statusNotFound, Detail: c.Name + " couldn't find or add it. " + r.Message, Warn: true, RequestVia: c.ID, rank: 4}

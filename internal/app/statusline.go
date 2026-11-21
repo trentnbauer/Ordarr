@@ -52,9 +52,9 @@ func statusParts(v *collectionView, entries int) []statusPart {
 			count[r.Status.Label]++
 		}
 	}
-	input := count[statusPick] + count[statusNotFound]
+	input := count[statusPick] + count[statusNotFound] + count[statusApproval]
 	for _, p := range []struct{ label, text string }{
-		{statusDownload, "downloading"}, {statusRequested, "requested"}, {statusPlexScan, "waiting for Plex"},
+		{statusDownload, "downloading"}, {statusSending, "being sent"}, {statusLimit, "waiting for the request limit"}, {statusRequested, "requested"}, {statusPlexScan, "waiting for Plex"},
 		{statusLookup, "being identified"}, {statusAuto, "to be requested"}, {statusNotAsked, "not requested"},
 	} {
 		if n := count[p.label]; n > 0 {
@@ -86,9 +86,9 @@ func statusCounts(rows []orderRow) []statusCount {
 		}
 	}
 	var out []statusCount
-	for _, label := range []string{statusDownload, statusPlexScan, statusRequested, statusLookup, statusAuto, statusNotAsked, statusNotFound, statusPick} {
+	for _, label := range []string{statusDownload, statusPlexScan, statusSending, statusLimit, statusRequested, statusLookup, statusAuto, statusNotAsked, statusNotFound, statusApproval, statusPick} {
 		if n := count[label]; n > 0 {
-			out = append(out, statusCount{Label: label, N: n, Warn: label == statusNotFound || label == statusPick})
+			out = append(out, statusCount{Label: label, N: n, Warn: label == statusNotFound || label == statusPick || label == statusApproval})
 		}
 	}
 	return out

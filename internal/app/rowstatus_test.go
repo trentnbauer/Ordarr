@@ -35,7 +35,7 @@ func TestMissingRowStatuses(t *testing.T) {
 		{"automatic downloads off globally", []store.ArrConnection{radarr(arr.Snapshot{})}, none, movie, false, false, statusNotAsked, true},
 		{"no downloader for this kind of entry", []store.ArrConnection{radarr(arr.Snapshot{})}, none, episode, true, false, statusNotFound, false},
 	} {
-		got := missingStatus(c.arrs, c.requests, c.entry, c.auto, c.optedOut, map[string]bool{"r": true}, nil)
+		got := missingStatus(c.arrs, c.requests, c.entry, c.auto, c.optedOut, map[string]bool{"r": true}, nil, nil)
 		if got.Label != c.want || (got.RequestVia != "") != c.request {
 			t.Errorf("%s: got %q (request via %q) want %q (request %v)", c.name, got.Label, got.RequestVia, c.want, c.request)
 		}
