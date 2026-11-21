@@ -15,11 +15,12 @@ import (
 )
 
 type accountView struct {
-	UserID                                       int64
-	Username, FriendlyName, ExpiresAt, CheckedAt string
-	Revision                                     int
-	Restricted, Expired                          bool
-	Playlists, Picks                             int // what disconnecting would stop managing / forget
+	UserID                            int64
+	Username, FriendlyName, ExpiresAt string
+	CheckedUnix                       int64
+	Revision                          int
+	Restricted, Expired               bool
+	Playlists, Picks                  int // what disconnecting would stop managing / forget
 }
 type authView struct{ ID, URL, ExpiresAt string }
 type accountServerView struct {
@@ -63,7 +64,7 @@ func (a *App) accountProjection(ctx context.Context) (*accountView, []accountSer
 	if err != nil {
 		return nil, nil, err
 	}
-	view := &accountView{UserID: account.UserID, Username: account.Username, FriendlyName: account.FriendlyName, Restricted: account.Restricted, Revision: account.Revision, ExpiresAt: time.Unix(account.ExpiresAt, 0).UTC().Format(time.RFC3339), CheckedAt: time.Unix(account.CheckedAt, 0).UTC().Format(time.RFC3339), Expired: account.ExpiresAt <= time.Now().Unix()}
+	view := &accountView{UserID: account.UserID, Username: account.Username, FriendlyName: account.FriendlyName, Restricted: account.Restricted, Revision: account.Revision, ExpiresAt: time.Unix(account.ExpiresAt, 0).UTC().Format(time.RFC3339), CheckedUnix: account.CheckedAt, Expired: account.ExpiresAt <= time.Now().Unix()}
 	if ids, err := a.store.AccountPlexIDs(ctx); err == nil {
 		if impact, err := a.store.PlexImpact(ctx, ids...); err == nil {
 			view.Playlists, view.Picks = impact.Playlists, impact.Picks
