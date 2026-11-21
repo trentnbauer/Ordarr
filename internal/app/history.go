@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -60,8 +61,46 @@ func span(oldest, newest int64, now time.Time) string {
 	return "since " + o.Format("2 Jan")
 }
 
-// historyRows turns one collection's jobs (newest first) into display rows.
-func historyRows(jobs []store.Job, now time.Time) []jobRow {
+// arrLabel names a Sonarr/Radarr instance for display.
+type arrLabel struct{ Name, Kind string }
+
+// requestRow words one download request for the History tab: what was asked for, which instance
+// it went to, who asked, and how it went.
+func requestRow(r store.AcquisitionRequest, instance arrLabel) jobRow {
+	when := r.AttemptedAt
+	if when == 0 {
+		when = r.CreatedAt
+	}
+	who := "asked automatically"
+	if r.Origin == "manual" {
+		who = "you asked"
+	}
+	row := jobRow{When: when, Kind: "Request", What: r.Title, Instance: instance.Name}
+	name := instance.Name
+	if name == "" {
+		name = "a removed instance"
+	}
+	switch r.State {
+	case "completed":
+		row.Result = "Requested from " + name + " (" + instance.Kind + ") · " + who
+	case "approved", "running":
+		row.Result, row.Class = "Being sent to "+name+" · "+who, "muted"
+	case "pending":
+		row.Result, row.Class = "Waiting for your approval to send to "+name+" · "+who, "warn"
+	case "uncertain":
+		row.Result, row.Class = "Sent to "+name+", but the outcome is uncertain: check "+name+". "+r.Message, "warn"
+	case "failed":
+		row.Result, row.Class = name+" couldn't find or add it · "+who+". "+r.Message+" Use Request now on the Order tab to try again.", "warn"
+	case "declined":
+		row.Result, row.Class = "Declined: not sent to "+name, "muted"
+	default:
+		row.Result = r.State + " · " + name
+	}
+	return row
+}
+
+// historyRows turns one collection's jobs and download requests into display rows, newest first.
+func historyRows(jobs []store.Job, requests []store.AcquisitionRequest, instances map[string]arrLabel, now time.Time) []jobRow {
 	var rows []jobRow
 	for _, j := range jobs {
 		r := jobRow{When: j.CreatedAt, Kind: "Playlist sync", Routine: routineSource(j)}
@@ -81,6 +120,10 @@ func historyRows(jobs []store.Job, now time.Time) []jobRow {
 		}
 		rows = append(rows, r)
 	}
+	for _, q := range requests {
+		rows = append(rows, requestRow(q, instances[q.ConnectionID]))
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].When > rows[j].When })
 	rows = collapseRoutine(rows, now)
 	if len(rows) > 50 {
 		rows = rows[:50]

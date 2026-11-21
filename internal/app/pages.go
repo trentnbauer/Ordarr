@@ -37,9 +37,10 @@ type waitingSync struct {
 type jobRow struct {
 	When                      int64
 	Kind, What, Result, Class string
-	Routine                   bool  // a successful check that changed nothing; runs of these fold into one row
-	Count                     int   // checks folded into this row
-	Oldest                    int64 // time of the earliest folded check
+	Instance                  string // the Sonarr/Radarr instance a request went to
+	Routine                   bool   // a successful check that changed nothing; runs of these fold into one row
+	Count                     int    // checks folded into this row
+	Oldest                    int64  // time of the earliest folded check
 }
 type activityView struct {
 	Sources           []waitingSource
