@@ -15,25 +15,20 @@
 
 {{define "collection-detail"}}{{$c:=.Collection}}{{$v:=.Detail}}<section class="detail" aria-labelledby="page-title">
 <div class="head flush"><div class="grow"><h1 class="lg" id="page-title">{{$c.Title}}</h1><p class="sub">{{if $v.Source}}Follows {{base $v.Source.Subscription.URL}} · {{if eq $v.Source.Subscription.Policy "approval"}}asks before applying updates{{else if eq $v.Source.Subscription.Policy "automatic"}}applies updates automatically{{else}}updates paused{{end}} · checked {{ago $v.Source.Subscription.CheckedAt}}{{else if $c.ForkedFrom}}Independent local copy · {{plural (len $c.Entries) "entry" "entries"}}{{else}}Local collection · {{plural (len $c.Entries) "entry" "entries"}}{{end}}</p></div>
-<div class="actions"><a class="btn" href="/collections/{{$c.ID}}/export?format=yaml">Export</a>{{if $v.SyncTarget}}<form class="inline-form" method="post" action="/destinations/{{$v.SyncTarget}}/sync"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn">Sync now</button></form>{{else}}<a class="btn" href="/collections/{{$c.ID}}?tab=publishing">Publish</a>{{end}}</div></div>
-<div class="stats top"><div class="stat"><span class="v">{{number (len $c.Entries)}}</span><span class="l">entries in order</span></div>
-{{if $v.Avail.Ready}}<div class="stat"><span class="v">{{number $v.Avail.Found}}</span><span class="l">playable on {{$v.Server.Name}}</span></div><div class="stat"><span class="v{{if $v.NotPlayable}} warn{{end}}">{{number $v.Avail.Missing}}</span><span class="l">missing{{if $v.Avail.NeedPick}} · {{$v.Avail.NeedPick}} need a pick{{end}}</span></div>
-{{else}}<div class="stat"><span class="v">—</span><span class="l">{{if $v.HasServer}}not checked on {{$v.Server.Name}} yet{{else}}no Plex server connected{{end}}</span></div><div class="stat"><span class="v">—</span><span class="l">missing</span></div>{{end}}
-<div class="stat"><span class="v">{{if $v.LastSync}}{{since $v.LastSync}}{{else}}—{{end}}</span><span class="l">{{if $v.LastSync}}since last sync{{else if $v.Destinations}}not synced yet{{else}}not published{{end}}</span></div></div>
+</div>
+<p class="statusline{{if $v.StatusWarn}} warn{{end}}" id="collection-status">{{$v.StatusLine}}</p>
 <nav class="tabs" aria-label="Collection sections">{{$id:=$c.ID}}
 <a class="tab" href="/collections/{{$id}}" {{if eq $v.Tab "order"}}aria-current="page"{{end}}>Order</a>
-<a class="tab" href="/collections/{{$id}}?tab=source" {{if eq $v.Tab "source"}}aria-current="page"{{end}}>Source updates{{if and $v.Source $v.Source.Proposed}} <span class="count">1</span>{{end}}</a>
-<a class="tab" href="/collections/{{$id}}?tab=publishing" {{if eq $v.Tab "publishing"}}aria-current="page"{{end}}>Publishing</a>
-<a class="tab" href="/collections/{{$id}}?tab=history" {{if eq $v.Tab "history"}}aria-current="page"{{end}}>History</a>
-<a class="tab" href="/collections/{{$id}}?tab=settings" {{if eq $v.Tab "settings"}}aria-current="page"{{end}}>Settings</a></nav>
+<a class="tab" href="/collections/{{$id}}?tab=advanced" {{if eq $v.Tab "advanced"}}aria-current="page"{{end}}>Advanced{{if and $v.Source $v.Source.Proposed}} <span class="count">1</span>{{end}}</a></nav>
 {{template "messages" .}}
-{{if $v.Created}}<p role="status" class="notice page-msg">Collection added.{{if $v.Destinations}} Ordarr is scanning {{$v.Server.Name}} and building the playlist now; check Publishing or Activity for progress.{{else if $v.HasServer}} Ordarr is checking it against {{$v.Server.Name}}.{{end}} Missing items keep their place and go into the playlist once Plex has them.</p>{{end}}
-{{if eq $v.Tab "order"}}{{template "tab-order" .}}{{else if eq $v.Tab "source"}}{{template "tab-source" .}}{{else if eq $v.Tab "publishing"}}{{template "tab-publishing" .}}{{else if eq $v.Tab "history"}}{{template "tab-history" .}}{{else}}{{template "tab-settings" .}}{{end}}
+{{if $v.Created}}<p role="status" class="notice page-msg">Collection added.{{if $v.Destinations}} Ordarr is scanning {{$v.Server.Name}} and building the playlist now; the line above shows progress.{{else if $v.HasServer}} Ordarr is checking it against {{$v.Server.Name}}.{{end}} Missing items keep their place and go into the playlist once Plex has them.</p>{{end}}
+{{if eq $v.Tab "order"}}{{template "tab-order" .}}{{else}}{{template "tab-advanced" .}}{{end}}
 </section>{{end}}
 
 {{define "revision-fields"}}<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{.Collection.Revision}}">{{end}}
 
 {{define "tab-order"}}{{$c:=.Collection}}{{$v:=.Detail}}{{$root:=.}}
+{{if and $v.Source $v.Source.Proposed}}<p class="notice page-msg">A new version of the source is waiting for your OK. <a href="/collections/{{$c.ID}}?tab=advanced#source-updates">Review it</a></p>{{end}}
 {{if $v.Source}}<div class="bulkbar"><span class="grow">This collection follows its source, so its order is read-only here.</span><form class="inline-form" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="fork"><button class="btn">Make an editable copy</button></form></div>
 {{else}}{{if or $v.Adding .EntryID}}{{template "entry-form" .}}{{end}}
 <form id="bulk-actions" class="bulkbar" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<span class="strong" id="selected-count" aria-live="polite">Select entries to move, repeat or remove</span>
@@ -68,7 +63,7 @@
 <form class="inline-form" method="post" action="/collections/{{$c.ID}}/source"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{$s.Revision}}"><input type="hidden" name="pending_hash" value="{{$v.Source.PendingHash}}"><button class="btn btn-primary" name="action" value="approve">Apply update</button> <button class="link-btn" name="action" value="skip">Skip this version</button></form></div>
 <div class="stats flat small"><div class="stat"><span class="v">{{$v.Added}}</span><span class="l">added</span></div><div class="stat"><span class="v">{{$v.Moved}}</span><span class="l">moved</span></div><div class="stat"><span class="v">{{$v.Changed}}</span><span class="l">changed</span></div><div class="stat"><span class="v">{{$v.Removed}}</span><span class="l">removed</span></div></div>
 <div class="rows">{{range $v.Changes}}<div class="change">{{if eq .Kind "added"}}<span class="sym add" aria-hidden="true">+</span><span class="k">Added</span><span>{{.Title}}</span><span class="where">at #{{.To}}</span>{{else if eq .Kind "moved"}}<span class="sym" aria-hidden="true">↕</span><span class="k">Moved</span><span>{{.Title}}</span><span class="where">#{{.From}} → #{{.To}}</span>{{else if eq .Kind "changed"}}<span class="sym" aria-hidden="true">~</span><span class="k">Changed</span><span>{{.Title}}</span><span class="where">at #{{.To}}</span>{{else}}<span class="sym add" aria-hidden="true">−</span><span class="k">Removed</span><span>{{.Title}}</span><span class="where">was #{{.From}}</span>{{end}}</div>{{end}}</div>
-<p class="note">Want to change this order yourself? Make an editable copy from Settings first. Ordarr never overwrites a copy.</p>
+<p class="note">Want to change this order yourself? Make an editable copy from Advanced first. Ordarr never overwrites a copy.</p>
 {{else}}<div class="empty"><h2>Up to date</h2><p>Last checked {{ago $s.CheckedAt}}. {{$s.Message}}</p>{{if $s.Failures}}<p class="alert">The last check failed, so the last good version is still in use. Ordarr will try again later.</p>{{end}}</div>{{end}}
 </div><div class="pane tint"><p class="kicker">Source</p><p class="mono">{{$s.URL}}</p>
 <form method="post" action="/collections/{{$c.ID}}/source"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn" name="action" value="fetch">Check now</button></form>
@@ -81,8 +76,13 @@
 </div></div>{{end}}
 {{end}}
 
-{{define "tab-history"}}{{$v:=.Detail}}<div class="panes"><div class="pane"><p class="kicker">Playlist syncs</p>{{template "sync-runs" .}}</div>
-<div class="pane tint"><p class="kicker">Source checks and sync jobs</p><div class="rows">{{range $v.Jobs}}<div class="history"><span class="when">{{clock .CreatedAt}}</span><span class="what{{if eq .State "failed"}} warn{{end}}">{{if eq .Kind "source"}}Source check{{else}}Playlist sync{{end}}</span><span>{{if eq .State "failed"}}Failed · {{end}}{{.Message}}</span></div>{{else}}<p class="note">No source checks or syncs have run yet.</p>{{end}}</div></div></div>{{end}}
+{{define "tab-history"}}{{$v:=.Detail}}<div class="rows">{{range $v.History}}<div class="history"><span class="when">{{clock .When}}</span><span class="what{{if eq .Class "warn"}} warn{{end}}">{{.Kind}}</span><span>{{.Result}}</span></div>{{else}}<p class="note">Nothing has run yet.</p>{{end}}</div>{{end}}
+
+{{define "tab-advanced"}}{{$v:=.Detail}}
+<h2 class="adv-h" id="source-updates">Source and updates</h2>{{template "tab-source" .}}
+<div class="rule"></div><h2 class="adv-h">Plex playlist</h2>{{template "tab-publishing" .}}
+<div class="rule"></div><h2 class="adv-h">Recent activity</h2>{{template "tab-history" .}}
+<div class="rule"></div><h2 class="adv-h">This collection</h2>{{template "tab-settings" .}}{{end}}
 
 {{define "sync-runs"}}{{$root:=.}}<div class="rows">{{range .Detail.Runs}}<div class="history"><span class="when">{{clock .CreatedAt}}</span><span class="what{{if eq .State "failed"}} warn{{else if ne .State "succeeded"}} muted{{end}}">{{runState .State}}</span><span>{{if .Destination}}{{.Destination}} · {{end}}{{if eq .State "succeeded"}}{{plural (len .Proposed) "item" "items"}} · {{end}}{{.Message}}{{if or (eq .State "pending") (eq .State "approved")}}<form class="inline-form" method="post" action="/sync-runs/{{.ID}}/approve"><input type="hidden" name="csrf" value="{{$root.CSRF}}"> <button class="btn btn-sm btn-dark">Approve this exact order</button></form>{{end}}</span></div>{{else}}<p class="note">No syncs yet.</p>{{end}}</div>{{end}}
 

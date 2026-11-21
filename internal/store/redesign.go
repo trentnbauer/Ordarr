@@ -400,7 +400,7 @@ func (s *Store) CollectionJobs(ctx context.Context, collection string) ([]Job, e
  WHERE (kind='source' AND target IN (SELECT id FROM subscriptions WHERE collection_id=?))
  OR (kind='sync' AND target IN (SELECT id FROM destinations WHERE collection_id=?))
  OR (kind='publish' AND substr(target,1,instr(target,'@')-1) IN (SELECT id FROM destinations WHERE collection_id=?))
- ORDER BY created_at DESC,id DESC LIMIT 50`, collection, collection, collection)
+ ORDER BY created_at DESC,id DESC LIMIT 300`, collection, collection, collection)
 	if err != nil {
 		return nil, err
 	}

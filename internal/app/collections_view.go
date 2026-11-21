@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/trentnbauer/Ordarr/internal/plex"
 	"github.com/trentnbauer/Ordarr/internal/portable"
@@ -58,7 +59,7 @@ type collectionView struct {
 	Destinations          []destView
 	Eligible              []plexView
 	Runs                  []syncRunView
-	Jobs                  []store.Job
+	History               []jobRow
 	PickEntry, PickQuery  string
 	PickResults           []plex.IdentifiedMedia
 	OtherPlex             []plexView
@@ -70,6 +71,8 @@ type collectionView struct {
 	SourceIntervals       []intervalOption
 	SyncIntervals         []intervalOption
 	Created               bool
+	StatusLine            string
+	StatusWarn            bool
 	Arr                   []arrView
 	NoDownload            bool // this collection opted out of automatic downloads
 	DownloadsReady        bool // a Sonarr/Radarr instance is set up and automatic downloads are on
@@ -77,7 +80,8 @@ type collectionView struct {
 	Removed               int
 }
 
-var collectionTabs = map[string]bool{"order": true, "source": true, "publishing": true, "history": true, "settings": true}
+// Tabs: Order, and Advanced. The older tab names still resolve (to Advanced) so old links work.
+var collectionTabs = map[string]bool{"order": true, "advanced": true, "source": true, "publishing": true, "history": true, "settings": true}
 
 func intervals(current int, manual bool) []intervalOption {
 	list := []intervalOption{{15, "15 minutes"}, {30, "30 minutes"}, {60, "1 hour"}, {360, "6 hours"}, {720, "12 hours"}, {1440, "1 day"}, {10080, "1 week"}}
@@ -149,6 +153,9 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	}
 	if !collectionTabs[tab] {
 		tab = "order"
+	}
+	if tab != "order" {
+		tab = "advanced"
 	}
 	v := &collectionView{Tab: tab, Adding: r.URL.Query().Get("add") == "1", Created: r.URL.Query().Get("created") == "1"}
 	p.Detail = v
@@ -247,7 +254,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			before, _ := portable.Decode(sub.LastValid)
 			after, _ := portable.Decode(sub.Pending)
 			sv.Changes = portable.Diff(before, after)
-			if tab == "source" {
+			if tab == "advanced" {
 				v.Changes = portable.DiffDetail(before, after)
 				for _, change := range v.Changes {
 					switch change.Kind {
@@ -268,8 +275,9 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		p.Source = sv
 		v.SourceIntervals = intervals(sub.IntervalMinutes, false)
 	}
+	v.StatusLine, v.StatusWarn = statusLine(v, len(c.Entries))
 	switch tab {
-	case "history", "publishing":
+	case "advanced":
 		runs, err := a.store.SyncRuns(ctx, c.ID)
 		if err != nil {
 			return p, err
@@ -281,11 +289,11 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		for _, run := range runs {
 			v.Runs = append(v.Runs, syncRunView{SyncRun: run, Destination: names[run.DestinationID]})
 		}
-		if tab == "history" {
-			if v.Jobs, err = a.store.CollectionJobs(ctx, c.ID); err != nil {
-				return p, err
-			}
+		jobs, err := a.store.CollectionJobs(ctx, c.ID)
+		if err != nil {
+			return p, err
 		}
+		v.History = historyRows(jobs, time.Now())
 	}
 	return p, nil
 }

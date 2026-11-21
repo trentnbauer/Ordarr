@@ -422,3 +422,7 @@ fieldset.field>legend{margin-bottom:4px}
 .orow .rowextra .input{padding:3px 8px;font-size:12px}
 .orow .rowextra .btn{font-family:var(--font-body);font-weight:400}
 @media (max-width:900px){.orow .rowextra{padding-left:0}}
+
+.statusline{margin:2px 0 14px;font-size:14px;color:var(--color-neutral-700)}
+.statusline.warn{color:var(--color-accent-700)}
+.adv-h{font-family:var(--font-heading);font-size:20px;margin:18px 0 8px}

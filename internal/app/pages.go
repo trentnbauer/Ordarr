@@ -36,6 +36,9 @@ type waitingSync struct {
 type jobRow struct {
 	When                      int64
 	Kind, What, Result, Class string
+	Routine                   bool  // a successful check that changed nothing; runs of these fold into one row
+	Count                     int   // checks folded into this row
+	Oldest                    int64 // time of the earliest folded check
 }
 type activityView struct {
 	Sources           []waitingSource
@@ -119,7 +122,7 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 		names[c.ID] = c.Name
 	}
 	for _, j := range jobs {
-		row := jobRow{When: j.CreatedAt, Kind: jobKinds[j.Kind], What: names[j.Target]}
+		row := jobRow{When: j.CreatedAt, Kind: jobKinds[j.Kind], What: names[j.Target], Routine: routineSource(j)}
 		if row.Kind == "" {
 			row.Kind = j.Kind
 		}
@@ -155,6 +158,10 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 			}
 		}
 		v.Jobs = append(v.Jobs, row)
+	}
+	v.Jobs = collapseRoutine(v.Jobs, time.Now())
+	if len(v.Jobs) > 50 {
+		v.Jobs = v.Jobs[:50]
 	}
 	return v, nil
 }
