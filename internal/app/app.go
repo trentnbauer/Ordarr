@@ -134,7 +134,9 @@ type page struct {
 	List                                                 *listView
 	Detail                                               *collectionView
 	Add                                                  *addView
-	MissingMedia                                         *missingView
+	NeedsInput                                           *inputView
+	Connections                                          *connectionsView
+	Welcome                                              *welcomeView
 	Activity                                             *activityView
 	Preferences                                          *settingsView
 	JellyfinPage                                         *jellyfinPageView
@@ -226,18 +228,21 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/acquisition/{id}/policy", a.protected(a.arrPolicy))
 	m.HandleFunc("POST /settings/acquisition/{id}/refresh", a.protected(a.arrRefresh))
 	m.HandleFunc("POST /settings/acquisition/{id}/requests", a.protected(a.proposeRequest))
-	m.HandleFunc("POST /settings/acquisition/{id}/automation", a.protected(a.collectionAutomation))
+	m.HandleFunc("POST /collections/{id}/downloads", a.protected(a.collectionDownloads))
 	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
 	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
 	m.HandleFunc("GET /settings/jellyfin", a.protected(a.jellyfinSettings))
 	m.HandleFunc("POST /settings/jellyfin/{id}/edit", a.protected(a.editJellyfin))
 	m.HandleFunc("GET /add", a.protected(a.addPage))
 	m.HandleFunc("POST /add", a.protected(a.addCollection))
-	m.HandleFunc("GET /missing", a.protected(a.missingPage))
-	m.HandleFunc("POST /missing/request", a.protected(a.requestMissing))
+	m.HandleFunc("GET /missing", a.protected(redirectTo("/needs-input")))
+	m.HandleFunc("GET /needs-input", a.protected(a.needsInputPage))
+	m.HandleFunc("GET /connections", a.protected(a.connectionsPage))
+	m.HandleFunc("GET /welcome", a.protected(a.welcomePage))
+	m.HandleFunc("POST /welcome/skip", a.protected(a.welcomeSkip))
+	m.HandleFunc("POST /welcome/finish", a.protected(a.welcomeFinish))
 	m.HandleFunc("POST /settings/password", a.protected(a.changePassword))
 	m.HandleFunc("POST /settings/sessions/revoke", a.protected(a.signOutEverywhere))
-	m.HandleFunc("POST /settings/defaults", a.protected(a.saveDefaults))
 	m.HandleFunc("POST /settings/acquisition/{id}/edit", a.protected(a.editArr))
 	m.HandleFunc("POST /settings/acquisition/{id}/approve-all", a.protected(a.approveAll))
 	m.HandleFunc("POST /requests/{id}/decline", a.protected(a.declineRequest))
@@ -475,7 +480,7 @@ func (a *App) signIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.cookie(w, sessionCookie, token, 86400)
-	http.Redirect(w, r, "/", 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/"), 303)
 }
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {

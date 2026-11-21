@@ -48,7 +48,7 @@ func (s *Store) Job(ctx context.Context, id string) (Job, error) {
 	return j, err
 }
 func (s *Store) RecentJobs(ctx context.Context) ([]Job, error) {
-	rows, err := s.DB.QueryContext(ctx, "SELECT id,kind,target,state,progress,message,created_at,finished_at FROM jobs ORDER BY created_at DESC,id DESC LIMIT 50")
+	rows, err := s.DB.QueryContext(ctx, "SELECT id,kind,target,state,progress,message,created_at,finished_at FROM jobs ORDER BY created_at DESC,id DESC LIMIT 300")
 	if err != nil {
 		return nil, err
 	}

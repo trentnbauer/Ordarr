@@ -35,7 +35,7 @@ func (a *App) connectArr(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition?id="+id, 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/settings/acquisition?id="+id), 303)
 }
 func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))
@@ -62,16 +62,7 @@ func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, _ := strconv.Atoi(r.PostForm.Get("limit"))
-	automatic, approval := r.PostForm.Get("automatic") == "yes", r.PostForm.Get("approval") == "yes"
-	switch r.PostForm.Get("mode") {
-	case "off":
-		automatic, approval = false, true
-	case "ask":
-		automatic, approval = true, true
-	case "auto":
-		automatic, approval = true, false
-	}
-	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, automatic, approval, limit, r.PostForm.Get("exclusions")); err != nil {
+	if err = a.store.ArrPolicy(r.Context(), c.ID, revision, limit, r.PostForm.Get("exclusions")); err != nil {
 		a.collectionError(w, err)
 		return
 	}
@@ -135,10 +126,11 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	id, ok := providerNumber(c, entry)
-	if !ok || r.PostForm.Get("confirm") != "yes" {
-		http.Error(w, "Confirm an exact TMDB movie or TVDB series and the whole-media request effect", 400)
+	if !ok {
+		http.Error(w, "Choose an exact TMDB movie or TVDB episode entry", 400)
 		return
 	}
+	back := "/collections/" + collection.ID + "#entry-" + entry.ID
 	conn, err := a.arrAccess(c)
 	if err != nil {
 		a.fail(w, "credential access failed")
@@ -148,15 +140,37 @@ func (a *App) proposeRequest(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	item, err := arr.New().Lookup(ctx, conn, id)
 	if err != nil {
-		http.Error(w, arr.ErrIdentity.Error(), 400)
+		// Shown on the row as "Not found in any downloader"; Request now retries.
+		a.store.RecordFailedRequest(r.Context(), c, id, entry.Title, "Lookup found no exact match.")
+		http.Redirect(w, r, back, 303)
 		return
 	}
-	_, err = a.store.ProposeAcquisition(r.Context(), c, id, item.Title, "manual", false)
+	// "Request now" is the explicit approval: send it straight away.
+	requestID, err := a.store.ProposeAcquisition(r.Context(), c, id, item.Title, "manual", true)
 	if err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
+	request, err := a.store.Acquisition(r.Context(), requestID)
+	if err != nil {
+		a.collectionError(w, err)
+		return
+	}
+	if request.State == "pending" || request.State == "uncertain" || request.State == "failed" {
+		if err = a.store.RetryAcquisition(r.Context(), requestID, c.Revision); err != nil {
+			a.collectionError(w, err)
+			return
+		}
+		request.State = "approved"
+	}
+	if request.State == "approved" {
+		if _, err = a.store.QueueJob(r.Context(), "acquire", requestID); err != nil {
+			a.fail(w, "queue acquisition failed")
+			return
+		}
+		a.wakeWorker()
+	}
+	http.Redirect(w, r, back, 303)
 }
 func (a *App) approveRequest(w http.ResponseWriter, r *http.Request) {
 	request, err := a.store.Acquisition(r.Context(), r.PathValue("id"))
@@ -238,30 +252,36 @@ func (a *App) executeAcquisition(ctx context.Context, id string) (ret error) {
 	}
 	return a.refreshArr(ctx, c.ID)
 }
-func (a *App) collectionAutomation(w http.ResponseWriter, r *http.Request) {
-	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))
-	if err != nil {
+
+// collectionDownloads is the per-collection switch for automatic downloads of missing items.
+func (a *App) collectionDownloads(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := a.store.Collection(r.Context(), id); err != nil {
 		a.collectionError(w, err)
 		return
 	}
-	if r.PostForm.Get("enabled") == "yes" && r.PostForm.Get("confirm") != "yes" {
-		http.Error(w, "Confirm whole-series/movie automation", 400)
-		return
-	}
-	if err = a.store.EnableCollectionRequests(r.Context(), c.ID, r.PostForm.Get("collection_id"), r.PostForm.Get("plex_id"), r.PostForm.Get("enabled") == "yes"); err != nil {
+	// The form sends "disable=yes" for "Don't download missing items for this collection".
+	if err := a.store.SetCollectionDownloads(r.Context(), id, r.PostForm.Get("disable") != "yes"); err != nil {
 		a.collectionError(w, err)
 		return
 	}
 	a.wakeWorker()
-	http.Redirect(w, r, "/settings/acquisition?id="+c.ID, 303)
+	http.Redirect(w, r, "/collections/"+id+"?tab=advanced", 303)
 }
+
+// arrReady reports whether a connection has somewhere to send requests.
+func arrReady(c store.ArrConnection) bool { return c.ProfileID > 0 && c.RootID > 0 }
+
 func (a *App) scheduleAcquisition(ctx context.Context) {
+	if d, err := a.store.Defaults(ctx); err != nil || !d.AutoDownload {
+		return
+	}
 	connections, err := a.store.ArrConnections(ctx)
 	if err != nil {
 		return
 	}
 	for _, c := range connections {
-		if c.Automatic && c.NextRun <= time.Now().Unix() {
+		if arrReady(c) && c.NextRun <= time.Now().Unix() {
 			if _, err = a.store.QueueJob(ctx, "arr-auto", c.ID); err == nil {
 				a.store.DB.ExecContext(ctx, "UPDATE arr_connections SET next_run=? WHERE id=?", time.Now().Add(time.Hour).Unix(), c.ID)
 			}
@@ -273,8 +293,12 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if !c.Automatic {
-		return store.ErrConflict
+	defaults, err := a.store.Defaults(ctx)
+	if err != nil {
+		return err
+	}
+	if !defaults.AutoDownload || !arrReady(c) {
+		return nil
 	}
 	conn, err := a.arrAccess(c)
 	if err != nil {
@@ -287,21 +311,21 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 	if err = a.store.UpdateArrSnapshot(ctx, c, snapshot); err != nil {
 		return err
 	}
-	rows, err := a.store.DB.QueryContext(ctx, "SELECT collection_id,plex_connection_id FROM arr_automation WHERE connection_id=?", id)
+	o, err := a.loadOverview(ctx)
 	if err != nil {
 		return err
 	}
-	var bindings [][2]string
-	for rows.Next() {
-		var b [2]string
-		if err = rows.Scan(&b[0], &b[1]); err != nil {
-			rows.Close()
-			return err
-		}
-		bindings = append(bindings, b)
+	optedOut, err := a.store.NoDownload(ctx)
+	if err != nil {
+		return err
 	}
-	err = rows.Err()
-	rows.Close()
+	var bindings [][2]string // collection, Plex server it is checked against
+	for _, ref := range o.Refs {
+		if server, ok := o.primary(ref.ID); ok && !optedOut[ref.ID] {
+			bindings = append(bindings, [2]string{ref.ID, server.ID})
+		}
+	}
+	known, err := a.store.AcquisitionIndex(ctx)
 	if err != nil {
 		return err
 	}
@@ -331,11 +355,17 @@ func (a *App) automaticAcquisition(ctx context.Context, id string) error {
 			if result.State != "missing" {
 				continue
 			}
+			// A failed lookup is retried only by "Request now", not every hour.
+			if r, seen := known[c.ID+"/"+strconv.Itoa(providerID)]; seen && r.State == "failed" {
+				continue
+			}
 			if proposed >= c.DailyLimit {
 				return nil
 			}
 			item, err := arr.New().Lookup(ctx, conn, providerID)
 			if err != nil {
+				// Remember it so the UI can say "not found" and we don't ask every hour.
+				a.store.RecordFailedRequest(ctx, c, providerID, e.Title, "Lookup found no exact match.")
 				continue
 			}
 			requestID, err := a.store.ProposeAcquisition(ctx, c, providerID, item.Title, "automatic", !c.RequireApproval)

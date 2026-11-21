@@ -216,16 +216,24 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 	retry := func(status int, err error) {
 		a.renderAdd(w, r, status, source, err.Error(), nil)
 	}
-	policy := r.PostForm.Get("policy")
-	if policy != "approval" && policy != "automatic" && policy != "none" {
-		policy = "none"
-	}
 	defaults, err := a.store.Defaults(ctx)
 	if err != nil {
 		a.fail(w, "defaults failed")
 		return
 	}
+	// "Follow" with nothing else chosen does everything: follow the source with the default
+	// update policy and publish to the (only, or default) Plex server.
+	policy := r.PostForm.Get("policy")
+	if _, ok := r.PostForm["policy"]; !ok {
+		policy = defaults.SourcePolicy
+	}
+	if policy != "approval" && policy != "automatic" && policy != "none" {
+		policy = "none"
+	}
 	server := r.PostForm.Get("server")
+	if _, ok := r.PostForm["server"]; !ok {
+		server = a.defaultServer(ctx, defaults)
+	}
 	if !store.ValidPlaylistName(r.PostForm.Get("playlist")) {
 		retry(400, errors.New("Use a playlist name of 1–200 characters, or leave it blank to use the collection title."))
 		return
@@ -335,6 +343,29 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 	}
 	a.wakeWorker()
 	http.Redirect(w, r, "/collections/"+id+"?created=1", 303)
+}
+
+// defaultServer is the Plex server a new collection publishes to when none is chosen: the
+// default for new collections, else the first server connected through Plex sign-in.
+func (a *App) defaultServer(ctx context.Context, d store.Defaults) string {
+	ids, err := a.store.PlexConnectionIDs(ctx)
+	if err != nil {
+		return ""
+	}
+	first := ""
+	for _, id := range ids {
+		c, err := a.store.PlexConnection(ctx, id)
+		if err != nil || c.AccountID != 1 {
+			continue
+		}
+		if id == d.ConnectionID {
+			return id
+		}
+		if first == "" {
+			first = id
+		}
+	}
+	return first
 }
 
 // queueCheck scans the collection's primary server when it has no complete

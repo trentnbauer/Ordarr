@@ -18,11 +18,11 @@ var Version = "dev"
 
 // navView feeds the sidebar shown on every signed-in page.
 type navView struct {
-	Section                         string
-	Username                        string
-	Collections, Missing            int
-	Plex, Jellyfin, Arr             string
-	PlexWarn, MissingWarn, ArrAlert bool
+	Section            string
+	Username           string
+	Collections, Input int    // Input: things waiting on the administrator
+	Connections        string // short state of Plex / Sonarr / Radarr
+	ConnWarn           bool
 }
 
 // overview is the cross-collection state the shell and lists are drawn from.
@@ -134,17 +134,6 @@ func (a *App) availabilityAll(ctx context.Context, o *overview) (map[string]avai
 	return result, nil
 }
 
-// missingIdentities counts distinct missing media across collections.
-func missingIdentities(values map[string]availability) int {
-	seen := map[string]bool{}
-	for _, v := range values {
-		for _, e := range v.MissingEntries {
-			seen[store.EntryIdentity(e)] = true
-		}
-	}
-	return len(seen)
-}
-
 func (a *App) navFor(ctx context.Context, section string, o *overview, values map[string]availability) (*navView, error) {
 	n := &navView{Section: section, Collections: len(o.Refs)}
 	name, _, err := a.store.Admin(ctx)
@@ -152,38 +141,39 @@ func (a *App) navFor(ctx context.Context, section string, o *overview, values ma
 		return nil, err
 	}
 	n.Username = name
-	n.Missing = missingIdentities(values)
-	n.MissingWarn = n.Missing > 0
-	switch {
-	case len(o.Plex) == 0:
-		n.Plex, n.PlexWarn = "Set up", true
-	default:
-		n.Plex = "OK"
-		for _, p := range o.Plex {
-			if p.LastError != "" {
-				n.Plex, n.PlexWarn = "Check", true
-			}
-		}
+	n.Connections, n.ConnWarn = connectionsSummary(o)
+	count, err := a.inputCount(ctx, o, values)
+	if err != nil {
+		return nil, err
 	}
-	if len(o.Jellyfin) > 0 {
-		n.Jellyfin = "Read-only"
-	}
-	if len(o.Arr) > 0 {
-		n.Arr = "Off"
-		for _, c := range o.Arr {
-			if c.Automatic {
-				n.Arr = "Auto"
-			}
-		}
-		pending, err := a.pendingRequests(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if pending > 0 {
-			n.Arr, n.ArrAlert = strconv.Itoa(pending)+" waiting", true
-		}
-	}
+	n.Input = count
 	return n, nil
+}
+
+// connectionsSummary is the sidebar's one-word state for Plex, Sonarr and Radarr.
+func connectionsSummary(o *overview) (string, bool) {
+	if len(o.Plex) == 0 {
+		return "Set up", true
+	}
+	for _, p := range o.Plex {
+		if p.LastError != "" {
+			return "Check", true
+		}
+	}
+	sonarr, radarr := false, false
+	for _, c := range o.Arr {
+		sonarr = sonarr || c.Kind == "sonarr"
+		radarr = radarr || c.Kind == "radarr"
+	}
+	switch {
+	case sonarr && !radarr:
+		return "No Radarr", true
+	case radarr && !sonarr:
+		return "No Sonarr", true
+	case !sonarr && !radarr:
+		return "No downloader", false
+	}
+	return "OK", false
 }
 func (a *App) pendingRequests(ctx context.Context) (int, error) {
 	var n int
@@ -234,8 +224,8 @@ func collectionStatus(o *overview, values map[string]availability, id string) (s
 	for _, d := range o.Destinations[id] {
 		if d.RemoteID != "" {
 			status := "Live on " + o.connectionName(d.ConnectionID)
-			if checked && v.Missing > 0 {
-				return status + " · " + strconv.Itoa(v.Missing) + " missing", false
+			if checked && v.Label() != "" {
+				return status + " · " + v.Label(), false
 			}
 			return status, false
 		}
@@ -243,8 +233,8 @@ func collectionStatus(o *overview, values map[string]availability, id string) (s
 	if len(o.Destinations[id]) > 0 {
 		return "Publishing to " + o.connectionName(o.Destinations[id][0].ConnectionID) + " · not synced yet", false
 	}
-	if checked && v.Missing > 0 {
-		return "Not published · " + strconv.Itoa(v.Missing) + " missing", false
+	if checked && v.Label() != "" {
+		return "Not published · " + v.Label(), false
 	}
 	return "Not published", false
 }
@@ -377,14 +367,10 @@ func section(mode string) string {
 	switch mode {
 	case "jobs":
 		return "activity"
-	case "missing":
-		return "missing"
-	case "plex", "media":
-		return "plex"
-	case "jellyfin", "jellyfin-matches":
-		return "jellyfin"
-	case "acquisition":
-		return "arr"
+	case "needs-input":
+		return "input"
+	case "plex", "media", "jellyfin", "jellyfin-matches", "acquisition", "connections":
+		return "connections"
 	case "settings":
 		return "settings"
 	}

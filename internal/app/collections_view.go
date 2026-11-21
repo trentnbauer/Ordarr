@@ -9,8 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
-	"github.com/trentnbauer/Ordarr/internal/matching"
+	"github.com/trentnbauer/Ordarr/internal/plex"
 	"github.com/trentnbauer/Ordarr/internal/portable"
 	"github.com/trentnbauer/Ordarr/internal/store"
 )
@@ -28,6 +29,9 @@ type orderRow struct {
 	Position int
 	State    string // available, unmatched, missing or "" when not checked
 	Repeat   bool
+	Status   rowStatus              // set for rows that are not playable yet
+	Picks    []plex.IdentifiedMedia // ambiguous matches offered for "needs a pick"
+	Manual   bool                   // mapped by the administrator
 }
 type destView struct {
 	store.Destination
@@ -39,12 +43,6 @@ type destView struct {
 type syncRunView struct {
 	store.SyncRun
 	Destination string
-}
-type missingRow struct {
-	Entry    store.Entry
-	Position int
-	Result   matching.Result
-	Manual   bool
 }
 type intervalOption struct {
 	Minutes int
@@ -61,11 +59,9 @@ type collectionView struct {
 	Destinations          []destView
 	Eligible              []plexView
 	Runs                  []syncRunView
-	Jobs                  []store.Job
-	MissingRows           []missingRow
-	MatchServer           plexView
-	MatchReady            bool
-	MatchScanned          int64
+	History               []jobRow
+	PickEntry, PickQuery  string
+	PickResults           []plex.IdentifiedMedia
 	OtherPlex             []plexView
 	Jellyfin              []jellyfinView
 	Adding                bool
@@ -75,12 +71,17 @@ type collectionView struct {
 	SourceIntervals       []intervalOption
 	SyncIntervals         []intervalOption
 	Created               bool
+	StatusLine            string
+	StatusWarn            bool
 	Arr                   []arrView
+	NoDownload            bool // this collection opted out of automatic downloads
+	DownloadsReady        bool // a Sonarr/Radarr instance is set up and automatic downloads are on
 	Added, Moved, Changed int
 	Removed               int
 }
 
-var collectionTabs = map[string]bool{"order": true, "missing": true, "source": true, "publishing": true, "history": true, "settings": true}
+// Tabs: Order, and Advanced. The older tab names still resolve (to Advanced) so old links work.
+var collectionTabs = map[string]bool{"order": true, "advanced": true, "source": true, "publishing": true, "history": true, "settings": true}
 
 func intervals(current int, manual bool) []intervalOption {
 	list := []intervalOption{{15, "15 minutes"}, {30, "30 minutes"}, {60, "1 hour"}, {360, "6 hours"}, {720, "12 hours"}, {1440, "1 day"}, {10080, "1 week"}}
@@ -153,6 +154,9 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	if !collectionTabs[tab] {
 		tab = "order"
 	}
+	if tab != "order" {
+		tab = "advanced"
+	}
 	v := &collectionView{Tab: tab, Adding: r.URL.Query().Get("add") == "1", Created: r.URL.Query().Get("created") == "1"}
 	p.Detail = v
 	if r.URL.Query().Get("publish") == "failed" {
@@ -203,8 +207,36 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	for _, j := range o.Jellyfin {
 		v.Jellyfin = append(v.Jellyfin, jellyfinPublic(j))
 	}
-	for _, c := range o.Arr {
-		v.Arr = append(v.Arr, arrPublic(c))
+	for _, conn := range o.Arr {
+		v.Arr = append(v.Arr, arrPublic(conn))
+		v.DownloadsReady = v.DownloadsReady || arrReady(conn) && o.Defaults.AutoDownload
+	}
+	optedOut, err := a.store.NoDownload(ctx)
+	if err != nil {
+		return p, err
+	}
+	v.NoDownload = optedOut[c.ID]
+	// Status for every row that is not playable yet, from data already held (no network calls).
+	requests, err := a.store.AcquisitionIndex(ctx)
+	if err != nil {
+		return p, err
+	}
+	v.PickEntry, v.PickQuery = r.URL.Query().Get("pick"), r.URL.Query().Get("q")
+	picks, err := a.loadPicks(ctx, c, v.Server.ID, v.Avail, v.PickEntry, v.PickQuery)
+	if err != nil {
+		return p, err
+	}
+	v.PickResults = picks.Results
+	for i := range v.Rows {
+		row := &v.Rows[i]
+		row.Manual = picks.Manual[row.Entry.ID]
+		switch row.State {
+		case "unmatched":
+			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could match.", Warn: true}
+			row.Picks = picks.Candidates[row.Entry.ID]
+		case "missing":
+			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload)
+		}
 	}
 	interval := o.Defaults.SyncInterval
 	if len(v.Destinations) > 0 {
@@ -222,7 +254,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			before, _ := portable.Decode(sub.LastValid)
 			after, _ := portable.Decode(sub.Pending)
 			sv.Changes = portable.Diff(before, after)
-			if tab == "source" {
+			if tab == "advanced" {
 				v.Changes = portable.DiffDetail(before, after)
 				for _, change := range v.Changes {
 					switch change.Kind {
@@ -243,12 +275,9 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		p.Source = sv
 		v.SourceIntervals = intervals(sub.IntervalMinutes, false)
 	}
+	v.StatusLine, v.StatusWarn = statusLine(v, len(c.Entries))
 	switch tab {
-	case "missing":
-		if err = a.missingTab(ctx, c, v, o, matchConnection); err != nil {
-			return p, err
-		}
-	case "history", "publishing":
+	case "advanced":
 		runs, err := a.store.SyncRuns(ctx, c.ID)
 		if err != nil {
 			return p, err
@@ -260,53 +289,13 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		for _, run := range runs {
 			v.Runs = append(v.Runs, syncRunView{SyncRun: run, Destination: names[run.DestinationID]})
 		}
-		if tab == "history" {
-			if v.Jobs, err = a.store.CollectionJobs(ctx, c.ID); err != nil {
-				return p, err
-			}
+		jobs, err := a.store.CollectionJobs(ctx, c.ID)
+		if err != nil {
+			return p, err
 		}
+		v.History = historyRows(jobs, time.Now())
 	}
 	return p, nil
-}
-
-func (a *App) missingTab(ctx context.Context, c store.Collection, v *collectionView, o *overview, connection string) error {
-	v.MatchServer = v.Server
-	if connection != "" {
-		s, ok := o.plexByID[connection]
-		if !ok {
-			return sql.ErrNoRows
-		}
-		v.MatchServer = s
-	}
-	if v.MatchServer.ID == "" {
-		return nil
-	}
-	v.OtherPlex = nil
-	for _, s := range o.Plex {
-		if s.ID != v.MatchServer.ID {
-			v.OtherPlex = append(v.OtherPlex, s)
-		}
-	}
-	items, scanned, err := a.store.Catalogue(ctx, v.MatchServer.ID)
-	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, store.ErrConflict) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	v.MatchReady, v.MatchScanned = true, scanned
-	overrides, err := a.store.ManualMatches(ctx, v.MatchServer.ID, c)
-	if err != nil {
-		return err
-	}
-	index := matching.NewIndex(items)
-	for i, e := range c.Entries {
-		result := index.Resolve(matching.Identity{Kind: e.Kind, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode}, overrides[e.ID])
-		if result.State != "available" || overrides[e.ID] != "" {
-			v.MissingRows = append(v.MissingRows, missingRow{Entry: e, Position: i + 1, Result: result, Manual: overrides[e.ID] != ""})
-		}
-	}
-	return nil
 }
 
 func (a *App) renderCollection(w http.ResponseWriter, r *http.Request, status int, c store.Collection, tab, connection string, change func(*page)) {

@@ -191,7 +191,7 @@ func (a *App) plexSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.logger.Info("Plex connection saved")
-	http.Redirect(w, r, "/settings/plex?result=saved", 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/settings/plex?result=saved"), 303)
 }
 func (a *App) plexCheck(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.PlexConnection(r.Context(), r.PathValue("id"))

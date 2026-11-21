@@ -83,6 +83,12 @@ func (a *App) executeJob(parent context.Context, j store.Job) {
 		return
 	}
 	status, message := "succeeded", "Completed"
+	if err == nil && j.Kind == "source" {
+		// Record what the check found so routine "no changes" checks can be folded in history.
+		if sub, e := a.store.Subscription(ctx, j.Target); e == nil && sub.Message != "" {
+			message = sub.Message
+		}
+	}
 	if err != nil {
 		status = "failed"
 		message = "The operation failed; last verified data was retained."

@@ -1,0 +1,8 @@
+{{define "connections"}}{{$v:=.Connections}}<section class="detail" aria-labelledby="page-title">
+<div class="head"><div class="grow"><h1 id="page-title">Connections</h1><p class="sub">Plex shows what you can watch and holds the playlists. Sonarr and Radarr download what's missing.</p></div></div>
+{{template "messages" .}}
+<div class="grid2">{{range $v.Cards}}<div class="pane"><div class="actions"><p class="kicker ink grow">{{.Name}}{{if .Optional}} · optional{{end}}</p><span class="tag{{if .Warn}} warn{{end}}">{{.State}}</span></div>
+{{range .Items}}<p>{{.}}</p>{{end}}
+{{if .Consequences}}<p class="note{{if .Warn}} warn{{end}}">{{.Consequences}}</p>{{end}}
+<div class="actions">{{if .Items}}<a class="btn" href="{{.Manage}}">Manage</a>{{end}}<a class="btn{{if not .Items}} btn-primary{{end}}" href="{{.Add}}">{{.AddLabel}}</a></div></div>{{end}}</div>
+</section>{{end}}

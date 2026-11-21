@@ -15,7 +15,7 @@ type ArrConnection struct {
 	ProfileID, RootID, Revision int
 	Snapshot                    arr.Snapshot
 	CheckedAt                   int64
-	Automatic, RequireApproval  bool
+	RequireApproval             bool // legacy "ask me first"; new connections send immediately
 	DailyLimit                  int
 	Exclusions                  string
 	NextRun                     int64
@@ -24,7 +24,8 @@ type ArrConnection struct {
 func scanArr(row interface{ Scan(...any) error }) (ArrConnection, error) {
 	var c ArrConnection
 	var data []byte
-	err := row.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.KeyCipher, &c.ProfileID, &c.RootID, &c.Revision, &data, &c.CheckedAt, &c.Automatic, &c.RequireApproval, &c.DailyLimit, &c.Exclusions, &c.NextRun)
+	var legacyAutomatic bool // superseded by Defaults.AutoDownload and the per-collection opt-out
+	err := row.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.KeyCipher, &c.ProfileID, &c.RootID, &c.Revision, &data, &c.CheckedAt, &legacyAutomatic, &c.RequireApproval, &c.DailyLimit, &c.Exclusions, &c.NextRun)
 	if err == nil {
 		err = json.Unmarshal(data, &c.Snapshot)
 	}
@@ -57,7 +58,7 @@ func (s *Store) CreateArr(ctx context.Context, c ArrConnection) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.DB.ExecContext(ctx, "INSERT INTO arr_connections(id,kind,name,base_url,key_cipher,profile_id,root_id,snapshot,checked_at) VALUES(?,?,?,?,?,?,?,?,?)", c.ID, c.Kind, c.Name, c.BaseURL, c.KeyCipher, c.ProfileID, c.RootID, data, time.Now().Unix())
+	_, err = s.DB.ExecContext(ctx, "INSERT INTO arr_connections(id,kind,name,base_url,key_cipher,profile_id,root_id,snapshot,checked_at,require_approval) VALUES(?,?,?,?,?,?,?,?,?,0)", c.ID, c.Kind, c.Name, c.BaseURL, c.KeyCipher, c.ProfileID, c.RootID, data, time.Now().Unix())
 	return err
 }
 func (s *Store) UpdateArrSnapshot(ctx context.Context, c ArrConnection, snapshot arr.Snapshot) error {
@@ -80,7 +81,7 @@ func Excluded(c ArrConnection, id int) bool {
 	}
 	return false
 }
-func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, automatic, approval bool, limit int, exclude string) error {
+func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, limit int, exclude string) error {
 	if limit < 1 || limit > 100 || len(exclude) > 4000 {
 		return ErrInvalid
 	}
@@ -89,7 +90,7 @@ func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, automati
 			return ErrInvalid
 		}
 	}
-	res, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET automatic=?,require_approval=?,daily_limit=?,exclusions=?,revision=revision+1,next_run=0 WHERE id=? AND revision=?", automatic, approval, limit, exclude, id, revision)
+	res, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET daily_limit=?,exclusions=?,revision=revision+1,next_run=0 WHERE id=? AND revision=?", limit, exclude, id, revision)
 	if err != nil {
 		return err
 	}
@@ -129,6 +130,38 @@ func (s *Store) Acquisitions(ctx context.Context) ([]AcquisitionRequest, error) 
 	}
 	return list, rows.Err()
 }
+
+// AcquisitionIndex lists every request keyed "connection/providerID", for per-row status.
+func (s *Store) AcquisitionIndex(ctx context.Context) (map[string]AcquisitionRequest, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT * FROM acquisition_requests")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]AcquisitionRequest{}
+	for rows.Next() {
+		r, err := scanAcquisition(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[r.ConnectionID+"/"+strconv.Itoa(r.ProviderID)] = r
+	}
+	return out, rows.Err()
+}
+
+// RecordFailedRequest remembers that a downloader could not find an item, so the UI can say so
+// and the automatic job does not look it up again every hour. Request now retries it.
+func (s *Store) RecordFailedRequest(ctx context.Context, c ArrConnection, id int, title, message string) error {
+	if id < 1 {
+		return ErrInvalid
+	}
+	if !validTitle(title) {
+		title = "Unknown title"
+	}
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO acquisition_requests(id,connection_id,provider_id,title,state,origin,connection_revision,created_at,message) VALUES(?,?,?,?,'failed','automatic',?,?,?) ON CONFLICT(connection_id,provider_id) DO NOTHING", newID(), c.ID, id, title, c.Revision, time.Now().Unix(), message)
+	return err
+}
+
 func (s *Store) ProposeAcquisition(ctx context.Context, c ArrConnection, id int, title, origin string, approved bool) (string, error) {
 	if id < 1 || Excluded(c, id) || !validTitle(title) {
 		return "", ErrInvalid
@@ -161,13 +194,12 @@ func (s *Store) BeginAcquisition(ctx context.Context, r AcquisitionRequest, c Ar
 	}
 	defer tx.Rollback()
 	var count, revision int
-	var automatic bool
 	var exclusions string
-	if err = tx.QueryRowContext(ctx, "SELECT revision,automatic,exclusions FROM arr_connections WHERE id=?", c.ID).Scan(&revision, &automatic, &exclusions); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT revision,exclusions FROM arr_connections WHERE id=?", c.ID).Scan(&revision, &exclusions); err != nil {
 		return err
 	}
 	c.Exclusions = exclusions
-	if revision != r.ConnectionRevision || Excluded(c, r.ProviderID) || r.Origin == "automatic" && !automatic {
+	if revision != r.ConnectionRevision || Excluded(c, r.ProviderID) {
 		return ErrConflict
 	}
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM acquisition_attempts WHERE connection_id=? AND created_at>=?", c.ID, time.Now().Add(-24*time.Hour).Unix()).Scan(&count); err != nil {
@@ -192,13 +224,33 @@ func (s *Store) FinishAcquisition(ctx context.Context, id, state, message string
 	_, err := s.DB.ExecContext(ctx, "UPDATE acquisition_requests SET state=?,message=? WHERE id=?", state, message, id)
 	return err
 }
-func (s *Store) EnableCollectionRequests(ctx context.Context, conn, collection, plexID string, enabled bool) error {
-	if !enabled {
-		_, err := s.DB.ExecContext(ctx, "DELETE FROM arr_automation WHERE connection_id=? AND collection_id=?", conn, collection)
+
+// SetCollectionDownloads turns automatic downloading of a collection's missing items on or off.
+func (s *Store) SetCollectionDownloads(ctx context.Context, collection string, enabled bool) error {
+	if enabled {
+		_, err := s.DB.ExecContext(ctx, "DELETE FROM collection_no_download WHERE collection_id=?", collection)
 		return err
 	}
-	_, err := s.DB.ExecContext(ctx, "INSERT INTO arr_automation VALUES(?,?,?) ON CONFLICT(connection_id,collection_id) DO UPDATE SET plex_connection_id=excluded.plex_connection_id", conn, collection, plexID)
+	_, err := s.DB.ExecContext(ctx, "INSERT OR IGNORE INTO collection_no_download SELECT id FROM collections WHERE id=?", collection)
 	return err
+}
+
+// NoDownload is the set of collections that opted out of automatic downloads.
+func (s *Store) NoDownload(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT collection_id FROM collection_no_download")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 func (s *Store) ConfigureArrChoices(ctx context.Context, id string, profile, root int) error {
 	if profile < 1 || root < 1 {
@@ -221,16 +273,23 @@ func (s *Store) ValidateAcquisition(ctx context.Context, r AcquisitionRequest, c
 	if err != nil {
 		return err
 	}
-	if current.Revision != r.ConnectionRevision || Excluded(current, r.ProviderID) || r.Origin == "automatic" && !current.Automatic {
+	if current.Revision != r.ConnectionRevision || Excluded(current, r.ProviderID) {
 		return ErrConflict
 	}
 	if r.Origin == "automatic" {
+		d, err := s.Defaults(ctx)
+		if err != nil {
+			return err
+		}
+		if !d.AutoDownload {
+			return ErrConflict
+		}
 		provider, kind := "tvdb", "episode"
 		if c.Kind == "radarr" {
 			provider, kind = "tmdb", "movie"
 		}
 		var count int
-		if err = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM arr_automation a JOIN entries e ON e.collection_id=a.collection_id WHERE a.connection_id=? AND e.provider=? AND e.kind=? AND e.external_id=?", c.ID, provider, kind, strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
+		if err = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM entries e WHERE e.collection_id NOT IN (SELECT collection_id FROM collection_no_download) AND e.provider=? AND e.kind=? AND e.external_id=?", provider, kind, strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
 			return err
 		}
 		if count == 0 {
