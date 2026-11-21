@@ -148,6 +148,11 @@ func (c *Client) get(ctx context.Context, base, path, token, clientID string, ta
 }
 func (c *Client) getLimit(ctx context.Context, base, path, token, clientID string, target any, headers *http.Header, limit int64) error {
 	// Only fixed application paths reach this method; response keys/URLs are never followed.
+	// The server address is administrator-supplied by design; it is re-checked here, right before
+	// the request is built, to be a bare http(s) origin (no credentials, path, query or fragment).
+	if !ServiceOrigin.MatchString(base) {
+		return ErrURL
+	}
 	for attempt := 0; attempt < 2; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
 		if err != nil {
