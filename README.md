@@ -1,3 +1,5 @@
+## NOT IN A WORKING STATE
+
 # Ordarr
 
 Self-hosted watch-order management for movies and individual TV episodes.
