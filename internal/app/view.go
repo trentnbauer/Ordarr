@@ -364,7 +364,7 @@ func playlistName(title string) string {
 var templateFuncs = template.FuncMap{
 	"inc": func(n int) int { return n + 1 }, "dec": func(n int) int { return n - 1 },
 	"ago": ago, "since": since, "clock": clock, "ep": episodeLabel, "plural": plural, "number": number,
-	"playlist": playlistName,
+	"playlist": playlistName, "syncText": syncText,
 	"add":      func(a, b int) int { return a + b },
 	"base":     sourceName,
 	"runState": runState,
