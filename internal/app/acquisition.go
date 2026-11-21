@@ -35,7 +35,7 @@ func (a *App) connectArr(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/acquisition?id="+id, 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/settings/acquisition?id="+id), 303)
 }
 func (a *App) arrPolicy(w http.ResponseWriter, r *http.Request) {
 	c, err := a.store.ArrConnection(r.Context(), r.PathValue("id"))

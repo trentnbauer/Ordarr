@@ -222,7 +222,7 @@ func (a *App) accountPoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.logger.Info("Plex account authorised")
-	http.Redirect(w, r, "/settings/plex?result=account", 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/settings/plex?result=account"), 303)
 }
 func (a *App) accountCancel(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.CancelPlexAuth(r.Context(), sessionValue(r), r.PathValue("attempt")); err != nil {
@@ -367,7 +367,7 @@ func (a *App) accountConnect(w http.ResponseWriter, r *http.Request) {
 		a.plexFailure(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/settings/plex?result=saved", 303)
+	http.Redirect(w, r, a.setupNext(r.Context(), "/settings/plex?result=saved"), 303)
 }
 
 // refreshLinked obtains the server-scoped resource token, never sends the Plex

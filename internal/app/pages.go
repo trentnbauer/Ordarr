@@ -237,22 +237,6 @@ func (a *App) signOutEverywhere(w http.ResponseWriter, r *http.Request) {
 	a.cookie(w, sessionCookie, "", -1)
 	http.Redirect(w, r, "/login", 303)
 }
-func (a *App) saveDefaults(w http.ResponseWriter, r *http.Request) {
-	interval, err := strconv.Atoi(r.PostForm.Get("interval"))
-	if err != nil {
-		a.renderSettings(w, r, 400, "Choose how often playlists sync.", "")
-		return
-	}
-	d := store.Defaults{ConnectionID: r.PostForm.Get("connection_id"), SourcePolicy: r.PostForm.Get("policy"), SyncInterval: interval}
-	if err = a.store.SaveDefaults(r.Context(), d); errors.Is(err, store.ErrInvalid) {
-		a.renderSettings(w, r, 400, err.Error(), "")
-		return
-	} else if err != nil {
-		a.fail(w, "defaults failed")
-		return
-	}
-	http.Redirect(w, r, "/settings?result=defaults", 303)
-}
 
 // ---- Activity page ----
 

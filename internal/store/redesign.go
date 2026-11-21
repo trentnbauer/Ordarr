@@ -461,3 +461,23 @@ func (s *Store) PendingAcquisitions(ctx context.Context, connection string) ([]A
 	}
 	return list, rows.Err()
 }
+
+// Pref reads a small free-form preference ("" when unset).
+func (s *Store) Pref(ctx context.Context, key string) string {
+	var v string
+	s.DB.QueryRowContext(ctx, "SELECT value FROM preferences WHERE key=?", key).Scan(&v)
+	return v
+}
+
+// SetPref stores a preference.
+func (s *Store) SetPref(ctx context.Context, key, value string) error {
+	_, err := s.DB.ExecContext(ctx, "INSERT INTO preferences VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", key, value)
+	return err
+}
+
+// FailedRequestCount counts items a downloader could not find or add.
+func (s *Store) FailedRequestCount(ctx context.Context) (int, error) {
+	var n int
+	err := s.DB.QueryRowContext(ctx, "SELECT count(*) FROM acquisition_requests WHERE state='failed'").Scan(&n)
+	return n, err
+}

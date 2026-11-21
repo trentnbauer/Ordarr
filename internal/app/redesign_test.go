@@ -280,14 +280,15 @@ func TestAccountSettingsAndDefaults(t *testing.T) {
 	if w := request(h, "GET", "/", nil, otherSession, csrf); w.Code != 303 {
 		t.Fatal("other session survived a password change")
 	}
-	if code := post("/settings/defaults", url.Values{"connection_id": {"missing"}, "policy": {"automatic"}, "interval": {"60"}}, session); code != 400 {
-		t.Fatal("unknown default server accepted", code)
+	// The setup wizard's last step saves the one global download choice and ends the wizard.
+	if code := post("/welcome/finish", url.Values{"auto": {"no"}}, session); code != 303 {
+		t.Fatal("wizard finish", code)
 	}
-	if code := post("/settings/defaults", url.Values{"connection_id": {""}, "policy": {"automatic"}, "interval": {"1440"}}, session); code != 303 {
-		t.Fatal("defaults not saved", code)
+	if d, err := a.store.Defaults(context.Background()); err != nil || d.AutoDownload {
+		t.Fatal("automatic downloads not switched off", d, err)
 	}
-	if d, err := a.store.Defaults(context.Background()); err != nil || d.SourcePolicy != "automatic" || d.SyncInterval != 1440 {
-		t.Fatal("defaults", d, err)
+	if a.store.Pref(context.Background(), "wizard_done") == "" {
+		t.Fatal("wizard not marked done")
 	}
 	if code := post("/settings/sessions/revoke", url.Values{}, session); code != 303 {
 		t.Fatal("sign out everywhere", code)
@@ -300,7 +301,7 @@ func TestAccountSettingsAndDefaults(t *testing.T) {
 func TestShellPagesRender(t *testing.T) {
 	_, h := fixture(t)
 	session, csrf := setup(t, h)
-	for _, path := range []string{"/", "/missing", "/jobs", "/settings", "/settings/plex", "/settings/jellyfin", "/settings/acquisition", "/add?source=paste", "/add?source=upload", "/add?source=url", "/import"} {
+	for _, path := range []string{"/", "/needs-input", "/connections", "/welcome", "/jobs", "/settings", "/settings/plex", "/settings/jellyfin", "/settings/acquisition", "/add?source=paste", "/add?source=upload", "/add?source=url", "/import"} {
 		w := request(h, "GET", path, nil, session, csrf)
 		if w.Code != 200 || !strings.Contains(w.Body.String(), `class="sidebar"`) {
 			t.Fatal(path, w.Code, w.Body.String())

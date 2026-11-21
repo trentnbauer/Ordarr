@@ -28,7 +28,7 @@ func TestFollowDoesEverythingByDefault(t *testing.T) {
 	}
 	// The dialog shows a single "Follow" button and no server picker for one server.
 	page := request(h, "GET", "/add", nil, session, csrf).Body.String()
-	if !strings.Contains(page, "<span>Follow</span>") || strings.Contains(page, `id="publish-server"`) || !strings.Contains(page, "Appears in Plex as a playlist on Home Plex") {
+	if !strings.Contains(page, "<span>Follow</span>") || strings.Contains(page, `id="publish-server"`) || !strings.Contains(page, "Appears in Plex as a playlist</span> on Home Plex") {
 		t.Fatal("dialog not collapsed to Follow", page)
 	}
 	// Posting only the picked order (no server, no policy) does everything.

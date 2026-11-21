@@ -4,7 +4,9 @@
 {{if eq .Mode "dashboard"}}{{template "collections" .}}
 {{else if eq .Mode "collection"}}{{template "collections" .}}
 {{else if eq .Mode "add"}}{{template "add" .}}
-{{else if eq .Mode "missing"}}{{template "missing" .}}
+{{else if eq .Mode "needs-input"}}{{template "needs-input" .}}
+{{else if eq .Mode "connections"}}{{template "connections" .}}
+{{else if eq .Mode "welcome"}}{{template "welcome" .}}
 {{else if eq .Mode "jobs"}}{{template "jobs" .}}
 {{else if eq .Mode "plex"}}{{template "plex-settings" .}}
 {{else if eq .Mode "media"}}{{template "library-media" .}}
@@ -20,14 +22,10 @@
 <nav class="side-groups" aria-label="Main navigation">
 <div class="side-group"><div class="side-label">Library</div>
 <a class="side-link" href="/" {{if eq $n.Section "collections"}}aria-current="page"{{end}}><span class="label-text">Collections</span><span class="side-meta">{{$n.Collections}}</span></a>
-<a class="side-link" href="/missing" {{if eq $n.Section "missing"}}aria-current="page"{{end}}><span class="label-text">Missing media</span>{{if $n.Missing}}<span class="side-meta warn">{{$n.Missing}}</span>{{end}}</a>
+<a class="side-link" href="/needs-input" {{if eq $n.Section "input"}}aria-current="page"{{end}}><span class="label-text">Needs your input</span>{{if $n.Input}}<span class="side-meta warn">{{$n.Input}}</span>{{end}}</a>
 <a class="side-link" href="/jobs" {{if eq $n.Section "activity"}}aria-current="page"{{end}}><span class="label-text">Activity</span></a></div>
-<div class="side-group"><div class="side-label">Publish to</div>
-<a class="side-link" href="/settings/plex" {{if eq $n.Section "plex"}}aria-current="page"{{end}}><span class="label-text">Plex</span><span class="side-meta{{if $n.PlexWarn}} warn{{end}}">{{$n.Plex}}</span></a>
-<a class="side-link" href="/settings/jellyfin" {{if eq $n.Section "jellyfin"}}aria-current="page"{{end}}><span class="label-text">Jellyfin</span>{{if $n.Jellyfin}}<span class="side-meta">{{$n.Jellyfin}}</span>{{end}}</a></div>
-<div class="side-group"><div class="side-label">Downloads</div>
-<a class="side-link" href="/settings/acquisition" {{if eq $n.Section "arr"}}aria-current="page"{{end}}><span class="label-text">Sonarr / Radarr</span>{{if $n.Arr}}<span class="side-meta{{if $n.ArrAlert}} warn{{end}}">{{$n.Arr}}</span>{{end}}</a></div>
-<div class="side-group"><div class="side-label">System</div>
+<div class="side-group"><div class="side-label">Setup</div>
+<a class="side-link" href="/connections" {{if eq $n.Section "connections"}}aria-current="page"{{end}}><span class="label-text">Connections</span><span class="side-meta{{if $n.ConnWarn}} warn{{end}}">{{$n.Connections}}</span></a>
 <a class="side-link" href="/settings" {{if eq $n.Section "settings"}}aria-current="page"{{end}}><span class="label-text">Settings</span></a></div>
 </nav>
 <form class="side-foot" action="/logout" method="post"><span class="who">{{$n.Username}}</span><input type="hidden" name="csrf" value="{{.CSRF}}"><button>Sign out</button></form>
