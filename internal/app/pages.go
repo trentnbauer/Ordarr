@@ -443,29 +443,22 @@ type arrView struct {
 	ProfileID, RootID, Revision int
 	Snapshot                    arr.Snapshot
 	CheckedAt                   int64
-	Automatic, RequireApproval  bool
 	DailyLimit                  int
 	Exclusions                  string
 }
 
 func arrPublic(c store.ArrConnection) arrView {
-	return arrView{ID: c.ID, Kind: c.Kind, Name: c.Name, BaseURL: c.BaseURL, ProfileID: c.ProfileID, RootID: c.RootID, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: c.CheckedAt, Automatic: c.Automatic, RequireApproval: c.RequireApproval, DailyLimit: c.DailyLimit, Exclusions: c.Exclusions}
+	return arrView{ID: c.ID, Kind: c.Kind, Name: c.Name, BaseURL: c.BaseURL, ProfileID: c.ProfileID, RootID: c.RootID, Revision: c.Revision, Snapshot: c.Snapshot, CheckedAt: c.CheckedAt, DailyLimit: c.DailyLimit, Exclusions: c.Exclusions}
 }
 
 type arrListItem struct {
 	ID, Name, Kind, Host, Status string
 	Warn, Active                 bool
 }
-type optIn struct{ ID, Title, Plex string }
 type arrDetail struct {
 	Connection                    arrView
 	Waiting, History              []store.AcquisitionRequest
 	Queued, Downloading, Attempts int
-	Mode                          string
-	OptIns                        []optIn
-	Available                     []optIn
-	Plex                          []plexView
-	DefaultPlex                   string
 }
 type arrPageView struct {
 	Items    []arrListItem
@@ -473,15 +466,6 @@ type arrPageView struct {
 	Adding   bool
 }
 
-func arrMode(c store.ArrConnection) string {
-	switch {
-	case !c.Automatic:
-		return "off"
-	case c.RequireApproval:
-		return "ask"
-	}
-	return "auto"
-}
 func queueCounts(s arr.Snapshot) (queued, downloading int) {
 	for _, q := range s.Queue {
 		if strings.EqualFold(q.Status, "downloading") {
@@ -548,7 +532,7 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 		case queued > 0:
 			item.Status = plural(queued, "queued", "queued")
 		default:
-			item.Status = "Connected · automatic requests " + map[string]string{"off": "off", "ask": "ask first", "auto": "on"}[arrMode(c)]
+			item.Status = "Connected"
 		}
 		v.Items = append(v.Items, item)
 	}
@@ -565,7 +549,7 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 	if !found {
 		return nil, sql.ErrNoRows
 	}
-	d := &arrDetail{Connection: arrPublic(conn), Mode: arrMode(conn), Plex: o.Plex}
+	d := &arrDetail{Connection: arrPublic(conn)}
 	d.Queued, d.Downloading = queueCounts(conn.Snapshot)
 	if d.Attempts, err = a.store.AttemptsSince(ctx, conn.ID, time.Now().Add(-24*time.Hour)); err != nil {
 		return nil, err
@@ -577,37 +561,6 @@ func (a *App) arrPage(ctx context.Context, r *http.Request) (*arrPageView, error
 		if req.ConnectionID == conn.ID && req.State != "pending" {
 			d.History = append(d.History, req)
 		}
-	}
-	titles, err := a.store.CollectionTitles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := a.store.DB.QueryContext(ctx, "SELECT collection_id,plex_connection_id FROM arr_automation WHERE connection_id=?", conn.ID)
-	if err != nil {
-		return nil, err
-	}
-	opted := map[string]bool{}
-	for rows.Next() {
-		var c, p string
-		if err = rows.Scan(&c, &p); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		opted[c] = true
-		d.OptIns = append(d.OptIns, optIn{ID: c, Title: titles[c], Plex: o.connectionName(p)})
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	for _, ref := range o.Refs {
-		if !opted[ref.ID] {
-			d.Available = append(d.Available, optIn{ID: ref.ID, Title: titles[ref.ID]})
-		}
-	}
-	if s, ok := o.primary(""); ok {
-		d.DefaultPlex = s.ID
 	}
 	v.Selected = d
 	return v, nil

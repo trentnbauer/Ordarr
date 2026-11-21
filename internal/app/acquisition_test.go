@@ -76,13 +76,13 @@ func TestAcquisitionApprovalAutomaticOptInAndUncertainRecovery(t *testing.T) {
 		t.Fatal(connections)
 	}
 	c := connections[0]
-	if c.Automatic || !c.RequireApproval {
+	if c.RequireApproval {
 		t.Fatal("unsafe defaults")
 	}
 	if strings.Contains(string(c.KeyCipher), "private-fixture-key") {
 		t.Fatal("plaintext secret")
 	}
-	post("/settings/acquisition/"+c.ID+"/policy", url.Values{"revision": {strconv.Itoa(c.Revision)}, "profile": {"1"}, "root": {"2"}, "limit": {"5"}, "automatic": {"yes"}}, 303)
+	post("/settings/acquisition/"+c.ID+"/policy", url.Values{"revision": {strconv.Itoa(c.Revision)}, "profile": {"1"}, "root": {"2"}, "limit": {"5"}}, 303)
 	c, _ = a.store.ArrConnection(ctx, c.ID)
 	collection, err := a.store.ImportCollection(ctx, store.Collection{Title: "Order", Entries: []store.Entry{{ID: "a", Kind: "movie", Title: "Movie", Provider: "tmdb", ExternalID: "42"}}})
 	if err != nil {
@@ -93,7 +93,7 @@ func TestAcquisitionApprovalAutomaticOptInAndUncertainRecovery(t *testing.T) {
 	}
 	requests, _ := a.store.Acquisitions(ctx)
 	if len(requests) != 0 {
-		t.Fatal("automatic requests without collection opt-in")
+		t.Fatal("automatic requests without a Plex catalogue to check against")
 	}
 	plexConn := store.PlexConnection{ID: "plex", Name: "Plex", BaseURL: "http://127.0.0.1:32400", AllowHTTP: true, ClientID: "client", TokenCipher: a.vault.Seal("token", "plex:plex:token"), MachineID: "machine", ServerName: "Plex", ServerVersion: "1"}
 	if err = a.store.SavePlexConnection(ctx, plexConn, 0); err != nil {
@@ -102,7 +102,18 @@ func TestAcquisitionApprovalAutomaticOptInAndUncertainRecovery(t *testing.T) {
 	if err = a.store.CommitCatalogue(ctx, "plex", "empty-generation", 1); err != nil {
 		t.Fatal(err)
 	}
-	if err = a.store.EnableCollectionRequests(ctx, c.ID, collection, "plex", true); err != nil {
+	// A collection that opted out never requests, even with everything else ready.
+	if err = a.store.SetCollectionDownloads(ctx, collection, false); err != nil {
+		t.Fatal(err)
+	}
+	if err = a.automaticAcquisition(ctx, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if requests, _ = a.store.Acquisitions(ctx); len(requests) != 0 {
+		t.Fatal("opted-out collection requested downloads")
+	}
+	// Downloads are on by default once the opt-out is lifted.
+	if err = a.store.SetCollectionDownloads(ctx, collection, true); err != nil {
 		t.Fatal(err)
 	}
 	if err = a.automaticAcquisition(ctx, c.ID); err != nil {

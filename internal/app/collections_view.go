@@ -76,6 +76,8 @@ type collectionView struct {
 	SyncIntervals         []intervalOption
 	Created               bool
 	Arr                   []arrView
+	NoDownload            bool // this collection opted out of automatic downloads
+	DownloadsReady        bool // a Sonarr/Radarr instance is set up and automatic downloads are on
 	Added, Moved, Changed int
 	Removed               int
 }
@@ -203,9 +205,15 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	for _, j := range o.Jellyfin {
 		v.Jellyfin = append(v.Jellyfin, jellyfinPublic(j))
 	}
-	for _, c := range o.Arr {
-		v.Arr = append(v.Arr, arrPublic(c))
+	for _, conn := range o.Arr {
+		v.Arr = append(v.Arr, arrPublic(conn))
+		v.DownloadsReady = v.DownloadsReady || arrReady(conn) && o.Defaults.AutoDownload
 	}
+	optedOut, err := a.store.NoDownload(ctx)
+	if err != nil {
+		return p, err
+	}
+	v.NoDownload = optedOut[c.ID]
 	interval := o.Defaults.SyncInterval
 	if len(v.Destinations) > 0 {
 		interval = v.Destinations[0].IntervalMinutes

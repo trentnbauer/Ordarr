@@ -226,7 +226,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/acquisition/{id}/policy", a.protected(a.arrPolicy))
 	m.HandleFunc("POST /settings/acquisition/{id}/refresh", a.protected(a.arrRefresh))
 	m.HandleFunc("POST /settings/acquisition/{id}/requests", a.protected(a.proposeRequest))
-	m.HandleFunc("POST /settings/acquisition/{id}/automation", a.protected(a.collectionAutomation))
+	m.HandleFunc("POST /collections/{id}/downloads", a.protected(a.collectionDownloads))
 	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
 	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
 	m.HandleFunc("GET /settings/jellyfin", a.protected(a.jellyfinSettings))

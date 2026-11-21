@@ -279,11 +279,12 @@ type Defaults struct {
 	ConnectionID string // empty: do not publish automatically
 	SourcePolicy string // approval or automatic
 	SyncInterval int    // minutes; 0 means manual
+	AutoDownload bool   // request missing items from Sonarr/Radarr unless a collection opts out
 }
 
 func (s *Store) Defaults(ctx context.Context) (Defaults, error) {
-	d := Defaults{SourcePolicy: "approval", SyncInterval: 60}
-	rows, err := s.DB.QueryContext(ctx, "SELECT key,value FROM preferences WHERE key IN ('default_connection','default_source_policy','default_sync_interval')")
+	d := Defaults{SourcePolicy: "automatic", SyncInterval: 60, AutoDownload: true}
+	rows, err := s.DB.QueryContext(ctx, "SELECT key,value FROM preferences WHERE key IN ('default_connection','default_source_policy','default_sync_interval','default_auto_download')")
 	if err != nil {
 		return d, err
 	}
@@ -298,6 +299,8 @@ func (s *Store) Defaults(ctx context.Context) (Defaults, error) {
 			d.ConnectionID = v
 		case "default_source_policy":
 			d.SourcePolicy = v
+		case "default_auto_download":
+			d.AutoDownload = v != "0"
 		case "default_sync_interval":
 			if n, e := strconv.Atoi(v); e == nil {
 				d.SyncInterval = n
@@ -336,7 +339,7 @@ func (s *Store) SaveDefaults(ctx context.Context, d Defaults) error {
 			return invalid("Choose a connected Plex server.")
 		}
 	}
-	for k, v := range map[string]string{"default_connection": d.ConnectionID, "default_source_policy": d.SourcePolicy, "default_sync_interval": strconv.Itoa(d.SyncInterval)} {
+	for k, v := range map[string]string{"default_connection": d.ConnectionID, "default_source_policy": d.SourcePolicy, "default_sync_interval": strconv.Itoa(d.SyncInterval), "default_auto_download": map[bool]string{true: "1", false: "0"}[d.AutoDownload]} {
 		if _, err = tx.ExecContext(ctx, "INSERT INTO preferences VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", k, v); err != nil {
 			return err
 		}

@@ -170,10 +170,8 @@ func (a *App) navFor(ctx context.Context, section string, o *overview, values ma
 	}
 	if len(o.Arr) > 0 {
 		n.Arr = "Off"
-		for _, c := range o.Arr {
-			if c.Automatic {
-				n.Arr = "Auto"
-			}
+		if o.Defaults.AutoDownload {
+			n.Arr = "Auto"
 		}
 		pending, err := a.pendingRequests(ctx)
 		if err != nil {
