@@ -48,7 +48,7 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 		if ret != nil {
 			failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			a.store.RecordSync(failureCtx, d, j.ID, "failed", "Sync failed safely. Reconcile current state before retrying.", desired)
+			a.store.RecordSync(failureCtx, d, j.ID, "failed", syncFailureMessage(ret, a.serverNameFor(failureCtx, d)), desired)
 		}
 	}()
 	c, err := a.store.PlexConnection(ctx, d.ConnectionID)
