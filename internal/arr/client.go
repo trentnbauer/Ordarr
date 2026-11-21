@@ -99,7 +99,7 @@ func resource(c Connection) string {
 	return "series"
 }
 func valid(c Connection) bool {
-	_, err := plex.NormalizeURL(c.URL, true)
+	_, err := plex.NormalizeBaseURL(c.URL, true)
 	return err == nil && (c.Kind == "sonarr" || c.Kind == "radarr") && len(c.Key) > 0 && len(c.Key) <= 512 && !strings.ContainsAny(c.Key, "\r\n")
 }
 func (c *Client) request(ctx context.Context, conn Connection, method, path string, in, out any) error {
@@ -115,7 +115,7 @@ func (c *Client) request(ctx context.Context, conn Connection, method, path stri
 		body = bytes.NewReader(data)
 	}
 	origin := strings.TrimSuffix(conn.URL, "/")
-	if !plex.ServiceOrigin.MatchString(origin) {
+	if !plex.ServiceBase.MatchString(origin) {
 		return ErrAPI
 	}
 	req, err := http.NewRequestWithContext(ctx, method, origin+"/api/v3/"+path, body)

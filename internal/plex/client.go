@@ -77,6 +77,30 @@ func NormalizeURL(raw string, allowHTTP bool) (string, error) {
 	return u.String(), nil
 }
 
+var urlBasePath = regexp.MustCompile(`^(?:/[A-Za-z0-9._~-]+)+$`)
+
+// NormalizeBaseURL is NormalizeURL that also keeps an optional URL base path
+// such as http://host:8989/sonarr (no trailing slash, query or fragment).
+func NormalizeBaseURL(raw string, allowHTTP bool) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", ErrURL
+	}
+	path := strings.TrimSuffix(u.Path, "/")
+	if path != "" && (!urlBasePath.MatchString(path) || u.RawPath != "") {
+		return "", ErrURL
+	}
+	u.Path, u.RawPath = "", ""
+	origin, err := NormalizeURL(u.String(), allowHTTP)
+	if err != nil {
+		return "", err
+	}
+	return origin + path, nil
+}
+
+// ServiceBase is a normalized origin followed by an optional URL base path.
+var ServiceBase = regexp.MustCompile(`^https?://[^/]+(?:/[A-Za-z0-9._~-]+)*$`)
+
 // New preserves inherited proxy and TLS settings. Direct DNS resolutions are
 // checked at dial time; proxied destination resolution is governed by the proxy.
 func New() *Client {

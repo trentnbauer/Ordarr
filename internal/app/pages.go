@@ -679,7 +679,7 @@ func (a *App) editArr(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, store.ErrConflict)
 		return
 	}
-	base, err := plex.NormalizeURL(r.PostForm.Get("url"), r.PostForm.Get("allow_http") == "yes")
+	base, err := plex.NormalizeBaseURL(r.PostForm.Get("url"), r.PostForm.Get("allow_http") == "yes")
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
