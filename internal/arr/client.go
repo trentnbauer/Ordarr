@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -238,6 +239,33 @@ func (c *Client) Lookup(ctx context.Context, conn Connection, id int) (Media, er
 	count := 0
 	for _, item := range items {
 		if exact(conn, item, id) {
+			found = item
+			count++
+		}
+	}
+	if count != 1 || found.Title == "" || found.Slug == "" {
+		return Media{}, ErrIdentity
+	}
+	return found, nil
+}
+
+var imdbID = regexp.MustCompile(`^tt[0-9]{7,10}$`)
+
+// LookupIMDB finds a title by IMDb ID (Radarr and Sonarr both search "imdb:tt..."), for entries
+// that list a title that way: the result carries the TMDB/TVDB ID the downloader needs. Exactly one
+// exact match is required.
+func (c *Client) LookupIMDB(ctx context.Context, conn Connection, imdb string) (Media, error) {
+	if !imdbID.MatchString(imdb) {
+		return Media{}, ErrIdentity
+	}
+	var items []Media
+	if err := c.request(ctx, conn, "GET", resource(conn)+"/lookup?term="+url.QueryEscape("imdb:"+imdb), nil, &items); err != nil {
+		return Media{}, err
+	}
+	var found Media
+	count := 0
+	for _, item := range items {
+		if strings.EqualFold(item.IMDB, imdb) {
 			found = item
 			count++
 		}

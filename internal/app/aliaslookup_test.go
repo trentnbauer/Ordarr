@@ -65,7 +65,7 @@ func TestAliasLookupFindsTitlesThatAreNotInTheLibraryYet(t *testing.T) {
 	id, err := a.store.ImportCollection(ctx, store.Collection{Title: "Order", Entries: []store.Entry{
 		{ID: "hulk", Kind: "movie", Title: "The Incredible Hulk", Provider: "tmdb", ExternalID: "1724"},
 		{ID: "nope", Kind: "movie", Title: "Not A Real Movie", Provider: "tmdb", ExternalID: "999999"},
-		{ID: "imdb", Kind: "movie", Title: "Skipped (IMDb entry)", Provider: "imdb", ExternalID: "tt0000001"},
+		{ID: "imdb", Kind: "movie", Title: "Listed by IMDb ID", Provider: "imdb", ExternalID: "tt0000001"},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -110,14 +110,14 @@ func TestAliasLookupFindsTitlesThatAreNotInTheLibraryYet(t *testing.T) {
 	if err = a.resolveAliases(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if lookups.Load() != 2 { // the Hulk and the unknown movie; the IMDb-ID entry is not looked up
+	if lookups.Load() != 3 { // the Hulk, the unknown movie and the IMDb-listed entry
 		t.Fatalf("lookups: %d", lookups.Load())
 	}
 	if got := states()[entryID["The Incredible Hulk"]]; got != "available" {
 		t.Fatalf("after the lookup the IMDb-only Plex item should match: %q", got)
 	}
 	// Answers (including "not found") are remembered: a second run asks nothing.
-	if err = a.resolveAliases(ctx); err != nil || lookups.Load() != 2 {
+	if err = a.resolveAliases(ctx); err != nil || lookups.Load() != 3 {
 		t.Fatalf("remembered answers were looked up again: %v %d", err, lookups.Load())
 	}
 	// Once everything is resolved the scheduler stops queueing runs.
@@ -130,7 +130,8 @@ func TestAliasLookupFindsTitlesThatAreNotInTheLibraryYet(t *testing.T) {
 	}
 	// "Not found" expires, so a title that appears later is asked again.
 	a.store.DB.Exec("UPDATE id_aliases SET fetched_at=? WHERE found=0", time.Now().Add(-8*24*time.Hour).Unix())
-	if err = a.resolveAliases(ctx); err != nil || lookups.Load() != 3 {
+	a.aliasCached = nil                                                 // the cache is rebuilt hourly in real use; force it here
+	if err = a.resolveAliases(ctx); err != nil || lookups.Load() != 5 { // both remembered 'not found' answers expired
 		t.Fatalf("an expired 'not found' was not retried: %v %d", err, lookups.Load())
 	}
 	// A downloader that is down fails the run and remembers nothing.

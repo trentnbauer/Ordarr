@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/trentnbauer/Ordarr/internal/matching"
 	"github.com/trentnbauer/Ordarr/internal/store"
@@ -11,8 +12,9 @@ import (
 
 // aliasInfo is what Radarr/Sonarr know about one title: its IDs in every provider, and its name.
 type aliasInfo struct {
-	IDs   map[string]string
-	Title string
+	IDs     map[string]string
+	Title   string
+	Missing bool // looked up and not found: the downloader does not know this ID
 }
 
 // aliasIndex finds that information from any one of a title's IDs. Keys are
@@ -91,6 +93,11 @@ func buildAliases(conns []store.ArrConnection, stored []store.StoredAlias) alias
 	// Titles that are not in a library yet were looked up in Radarr/Sonarr and remembered.
 	for _, l := range stored {
 		if !l.Found {
+			if time.Since(time.Unix(l.FetchedAt, 0)) < aliasNegativeTTL {
+				if key := l.Kind + "|" + l.Provider + ":" + l.ID; idx[key].IDs == nil {
+					idx[key] = aliasInfo{Missing: true}
+				}
+			}
 			continue
 		}
 		ids := map[string]string{}
@@ -141,4 +148,50 @@ func identityFor(e store.Entry, al aliasIndex) matching.Identity {
 		}
 	}
 	return id
+}
+
+// idState says whether Ordarr has the ID a downloader needs for an entry.
+type idState int
+
+const (
+	idNone     idState = iota // this downloader cannot handle the entry (wrong kind of title)
+	idOK                      // the ID is known
+	idPending                 // listed under another provider; its ID has not been looked up yet
+	idNotFound                // looked up: the downloader does not know this title
+)
+
+// requestID is the ID a downloader needs for an entry: the TMDB ID for Radarr, the TVDB ID for
+// Sonarr. An entry listed by another provider (many lists use IMDb IDs for movies) is translated
+// with the aliases Radarr/Sonarr supplied. Before this, such entries had no downloader at all.
+func requestID(c store.ArrConnection, e store.Entry, al aliasIndex) (int, idState) {
+	native, kind := "tvdb", "episode"
+	if c.Kind == "radarr" {
+		native, kind = "tmdb", "movie"
+	}
+	if e.Kind != kind {
+		return 0, idNone
+	}
+	parse := func(raw string) (int, bool) {
+		id, err := strconv.Atoi(raw)
+		return id, err == nil && id > 0 && id <= 2147483647
+	}
+	if e.Provider == native {
+		if id, ok := parse(e.ExternalID); ok {
+			return id, idOK
+		}
+		return 0, idNone
+	}
+	switch e.Provider {
+	case "imdb", "tmdb", "tvdb":
+	default:
+		return 0, idNone
+	}
+	info := al[e.Kind+"|"+e.Provider+":"+e.ExternalID]
+	if id, ok := parse(info.IDs[native]); ok {
+		return id, idOK
+	}
+	if info.Missing {
+		return 0, idNotFound
+	}
+	return 0, idPending
 }

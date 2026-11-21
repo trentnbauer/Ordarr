@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/trentnbauer/Ordarr/internal/arr"
 	"github.com/trentnbauer/Ordarr/internal/matching"
@@ -25,6 +26,7 @@ const (
 	statusDownload  = "Downloading"
 	statusPlexScan  = "Waiting for Plex scan"
 	statusNotFound  = "Not found in any downloader"
+	statusLookup    = "Looking up its ID"
 	statusNotAsked  = "Not requested"
 	statusAuto      = "Will be requested automatically"
 	statusPick      = "Needs a pick"
@@ -32,17 +34,23 @@ const (
 
 // missingStatus derives the status of a missing entry from data Ordarr already holds: the last
 // Sonarr/Radarr snapshot (library and queue) and its own request log. Nothing is fetched here.
-func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool, chosen map[string]bool) rowStatus {
+func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool, chosen map[string]bool, al aliasIndex) rowStatus {
 	if len(arrs) == 0 {
 		return rowStatus{Label: statusNotAsked, Detail: "Connect Sonarr or Radarr to download it.", rank: 1}
 	}
 	best := rowStatus{Label: statusNotFound, Detail: "No connected downloader handles this kind of ID.", Warn: true, rank: 2}
 	for _, c := range arrs {
-		id, ok := providerNumber(c, e)
-		if !ok {
+		var s rowStatus
+		switch id, state := requestID(c, e, al); state {
+		case idOK:
+			s = statusOn(c, requests, id, autoOn && !optedOut && chosen[c.ID])
+		case idPending: // listed by IMDb ID: its TMDB/TVDB ID is looked up in the background
+			s = rowStatus{Label: statusLookup, Detail: "This title is listed by " + strings.ToUpper(e.Provider) + " ID; Ordarr is asking " + c.Name + " for the ID it needs.", rank: 3}
+		case idNotFound:
+			s = rowStatus{Label: statusNotFound, Detail: c.Name + " has no title with this " + strings.ToUpper(e.Provider) + " ID. Check the ID in the collection file.", Warn: true, rank: 4}
+		default:
 			continue
 		}
-		s := statusOn(c, requests, id, autoOn && !optedOut && chosen[c.ID])
 		if s.rank > best.rank {
 			best = s
 		}

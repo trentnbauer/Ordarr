@@ -40,7 +40,7 @@ func statusLine(v *collectionView, entries int) (line string, warn bool) {
 	input := count[statusPick] + count[statusNotFound]
 	for _, p := range []struct{ label, text string }{
 		{statusDownload, "downloading"}, {statusRequested, "requested"}, {statusPlexScan, "waiting for Plex"},
-		{statusAuto, "to be requested"}, {statusNotAsked, "not requested"},
+		{statusLookup, "being identified"}, {statusAuto, "to be requested"}, {statusNotAsked, "not requested"},
 	} {
 		if n := count[p.label]; n > 0 {
 			parts = append(parts, strconv.Itoa(n)+" "+p.text)
@@ -73,7 +73,7 @@ func statusCounts(rows []orderRow) []statusCount {
 		}
 	}
 	var out []statusCount
-	for _, label := range []string{statusDownload, statusPlexScan, statusRequested, statusAuto, statusNotAsked, statusNotFound, statusPick} {
+	for _, label := range []string{statusDownload, statusPlexScan, statusRequested, statusLookup, statusAuto, statusNotAsked, statusNotFound, statusPick} {
 		if n := count[label]; n > 0 {
 			out = append(out, statusCount{Label: label, N: n, Warn: label == statusNotFound || label == statusPick})
 		}
