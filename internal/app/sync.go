@@ -159,6 +159,7 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 	if err = a.store.CompleteSync(ctx, d, collection.Revision, desired); err != nil {
 		return err
 	}
+	a.polishPlaylist(ctx, c, token, d, collection)
 	return a.store.RecordSync(ctx, d, j.ID, "succeeded", "Exact ordered sequence verified; unrelated playlists and source media were untouched.", desired)
 }
 func (a *App) createDestination(w http.ResponseWriter, r *http.Request) {

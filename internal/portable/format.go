@@ -20,6 +20,7 @@ type Document struct {
 	Version     int     `json:"version" yaml:"version"`
 	Title       string  `json:"title" yaml:"title"`
 	Description string  `json:"description,omitempty" yaml:"description,omitempty"`
+	Cover       string  `json:"cover,omitempty" yaml:"cover,omitempty"` // optional https image URL
 	Entries     []Entry `json:"entries" yaml:"entries"`
 }
 type Entry struct {
@@ -54,7 +55,7 @@ func Decode(data []byte) (Document, error) {
 	return d, nil
 }
 func (d Document) Collection() (store.Collection, error) {
-	c := store.Collection{Title: d.Title, Description: d.Description}
+	c := store.Collection{Title: d.Title, Description: d.Description, Cover: d.Cover}
 	seen := map[string]bool{}
 	if d.Version != 1 || len(d.ID) > 80 || len(d.Entries) > store.MaxEntries {
 		return c, ErrFormat
@@ -100,7 +101,7 @@ func (d Document) Collection() (store.Collection, error) {
 }
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 func FromCollection(c store.Collection) Document {
-	d := Document{Version: 1, ID: c.ID, Title: c.Title, Description: c.Description, Entries: []Entry{}}
+	d := Document{Version: 1, ID: c.ID, Title: c.Title, Description: c.Description, Cover: c.Cover, Entries: []Entry{}}
 	for _, e := range c.Entries {
 		d.Entries = append(d.Entries, Entry{ID: e.ID, Kind: e.Kind, Title: e.Title, Provider: e.Provider, ExternalID: e.ExternalID, Season: e.Season, Episode: e.Episode})
 	}

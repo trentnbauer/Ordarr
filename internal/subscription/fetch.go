@@ -58,11 +58,10 @@ func publicIP(ip netip.Addr) bool {
 // dialer still apply; this is a final syntactic gate before the request.
 var publicHTTPS = regexp.MustCompile(`^https://[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.?(?::443)?(?:[/?][^\s#]*)?$`)
 
-func Fetch(ctx context.Context, raw, etag, modified string) (Result, error) {
-	var out Result
-	if ValidateURL(raw) != nil || !publicHTTPS.MatchString(raw) {
-		return out, ErrFetch
-	}
+// safeClient is an HTTP client that only ever connects to public addresses (every resolved
+// address is checked at dial time), follows at most three redirects, each re-validated, and
+// ignores proxy settings. The returned function releases its connections.
+func safeClient() (*http.Client, func()) {
 	transport := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, DisableKeepAlives: true, ResponseHeaderTimeout: 10 * time.Second, MaxResponseHeaderBytes: 32 << 10}
 	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
@@ -87,13 +86,74 @@ func Fetch(ctx context.Context, raw, etag, modified string) (Result, error) {
 		}
 		return nil, ErrFetch
 	}
-	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 20 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 3 {
 			return ErrFetch
 		}
 		return ValidateURL(req.URL.String())
 	}}
+	return client, transport.CloseIdleConnections
+}
+
+// ErrImage is returned for any cover image that cannot be fetched safely.
+var ErrImage = errors.New("Cover image fetch failed. Use a public https:// link to a PNG, JPEG or WebP image of at most 2 MiB.")
+
+// MaxImageBytes caps a cover image download.
+const MaxImageBytes = 2 << 20
+
+// FetchImage downloads a collection's cover image under the same rules as source files: https
+// only, public hosts only. The bytes are sniffed, not trusted: only real PNG, JPEG or WebP data is
+// returned (never SVG, which could carry script), together with the sniffed content type.
+func FetchImage(ctx context.Context, raw string) ([]byte, string, error) {
+	if ValidateURL(raw) != nil || !publicHTTPS.MatchString(raw) {
+		return nil, "", ErrImage
+	}
+	client, closeClient := safeClient()
+	defer closeClient()
+	req, err := http.NewRequestWithContext(ctx, "GET", raw, nil)
+	if err != nil {
+		return nil, "", ErrImage
+	}
+	req.Header.Set("Accept", "image/png, image/jpeg, image/webp")
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, "", ErrImage
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, "", ErrImage
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, MaxImageBytes+1))
+	if err != nil || len(data) == 0 || len(data) > MaxImageBytes {
+		return nil, "", ErrImage
+	}
+	kind, ok := sniffImage(data)
+	if !ok {
+		return nil, "", ErrImage
+	}
+	return data, kind, nil
+}
+
+// sniffImage identifies the bytes themselves rather than trusting the server's Content-Type, and
+// accepts only raster formats (no SVG, which can carry script, and no HTML served as an image).
+func sniffImage(data []byte) (string, bool) {
+	if len(data) == 0 || len(data) > MaxImageBytes {
+		return "", false
+	}
+	switch kind := http.DetectContentType(data); kind {
+	case "image/png", "image/jpeg", "image/webp":
+		return kind, true
+	}
+	return "", false
+}
+
+func Fetch(ctx context.Context, raw, etag, modified string) (Result, error) {
+	var out Result
+	if ValidateURL(raw) != nil || !publicHTTPS.MatchString(raw) {
+		return out, ErrFetch
+	}
+	client, closeClient := safeClient()
+	defer closeClient()
 	req, err := http.NewRequestWithContext(ctx, "GET", raw, nil)
 	if err != nil {
 		return out, ErrFetch

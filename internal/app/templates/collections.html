@@ -14,7 +14,7 @@
 </nav>{{end}}
 
 {{define "collection-detail"}}{{$c:=.Collection}}{{$v:=.Detail}}<section class="detail" aria-labelledby="page-title">
-<div class="head flush"><div class="grow"><h1 class="lg" id="page-title">{{$c.Title}}</h1><p class="sub">{{if $v.Source}}Follows {{base $v.Source.Subscription.URL}} · {{if eq $v.Source.Subscription.Policy "approval"}}asks before applying updates{{else if eq $v.Source.Subscription.Policy "automatic"}}applies updates automatically{{else}}updates paused{{end}} · checked {{ago $v.Source.Subscription.CheckedAt}}{{else if $c.ForkedFrom}}Independent local copy · {{plural (len $c.Entries) "entry" "entries"}}{{else}}Local collection · {{plural (len $c.Entries) "entry" "entries"}}{{end}}</p></div>
+<div class="head flush">{{if $v.HasCover}}<img class="cover" src="/collections/{{$c.ID}}/cover" alt="" width="96">{{end}}<div class="grow"><h1 class="lg" id="page-title">{{$c.Title}}</h1><p class="sub">{{if $v.Source}}Follows {{base $v.Source.Subscription.URL}} · {{if eq $v.Source.Subscription.Policy "approval"}}asks before applying updates{{else if eq $v.Source.Subscription.Policy "automatic"}}applies updates automatically{{else}}updates paused{{end}} · checked {{ago $v.Source.Subscription.CheckedAt}}{{else if $c.ForkedFrom}}Independent local copy · {{plural (len $c.Entries) "entry" "entries"}}{{else}}Local collection · {{plural (len $c.Entries) "entry" "entries"}}{{end}}</p></div>
 </div>
 <p class="statusline{{if $v.StatusWarn}} warn{{end}}" id="collection-status" title="Plex collections can't mix movies and episodes or keep one order across libraries, so Ordarr publishes a playlist instead.">{{$v.StatusLine}}</p>
 <nav class="tabs" aria-label="Collection sections">{{$id:=$c.ID}}

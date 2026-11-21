@@ -37,3 +37,31 @@ func TestPublicHTTPSPattern(t *testing.T) {
 		}
 	}
 }
+
+func TestCoverImagesMustBeRealRasterImagesFromPublicHTTPS(t *testing.T) {
+	png := append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 32)...)
+	jpeg := append([]byte("\xff\xd8\xff\xe0"), make([]byte, 32)...)
+	webp := append([]byte("RIFF\x24\x00\x00\x00WEBPVP8 "), make([]byte, 32)...)
+	for name, data := range map[string][]byte{"png": png, "jpeg": jpeg, "webp": webp} {
+		if _, ok := sniffImage(data); !ok {
+			t.Errorf("%s rejected", name)
+		}
+	}
+	for name, data := range map[string][]byte{
+		"svg":   []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`),
+		"html":  []byte("<!doctype html><html></html>"),
+		"gif":   []byte("GIF89a\x01\x00\x01\x00"),
+		"empty": nil,
+		"huge":  append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, MaxImageBytes)...),
+	} {
+		if _, ok := sniffImage(data); ok {
+			t.Errorf("%s accepted as an image", name)
+		}
+	}
+	// Only public https URLs are ever fetched: no network call is made for these.
+	for _, raw := range []string{"http://example.com/a.png", "https://localhost/a.png", "https://127.0.0.1/a.png", "https://10.0.0.5/a.png", "https://user:pw@example.com/a.png", "https://example.com:8443/a.png", "file:///etc/passwd", ""} {
+		if _, _, err := FetchImage(context.Background(), raw); err != ErrImage {
+			t.Errorf("%q: got %v, want ErrImage", raw, err)
+		}
+	}
+}

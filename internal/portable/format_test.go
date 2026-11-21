@@ -49,3 +49,29 @@ func TestRangeSourceIDAlwaysExportsWithinBounds(t *testing.T) {
 		t.Fatal("expanded IDs exceed public schema")
 	}
 }
+
+func TestCoverIsAnOptionalHTTPSURLThatRoundTrips(t *testing.T) {
+	doc := func(cover string) []byte {
+		return []byte("version: 1\ntitle: T\ncover: \"" + cover + "\"\nentries:\n  - id: a\n    kind: movie\n    title: M\n    provider: tmdb\n    external_id: \"1\"\n")
+	}
+	d, err := Decode(doc("https://img.example/c.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := d.Collection()
+	if c.Cover != "https://img.example/c.png" {
+		t.Fatal("cover lost", c.Cover)
+	}
+	out, err := Encode(FromCollection(c), "yaml")
+	if err != nil || !strings.Contains(string(out), "cover: https://img.example/c.png") {
+		t.Fatalf("cover not exported: %v\n%s", err, out)
+	}
+	if _, err = Decode([]byte("version: 1\ntitle: T\nentries: []\n")); err != nil {
+		t.Fatal("a collection without a cover must still be valid", err)
+	}
+	for _, bad := range []string{"http://img.example/c.png", "javascript:alert(1)", "https://img.example/a b.png", "https://user:pw@img.example/c.png", "/relative.png", "https://img.example/" + strings.Repeat("a", 2100)} {
+		if _, err := Decode(doc(bad)); err == nil {
+			t.Errorf("cover %q accepted", bad[:min(len(bad), 40)])
+		}
+	}
+}

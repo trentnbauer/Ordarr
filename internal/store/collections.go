@@ -27,6 +27,7 @@ type Entry struct {
 }
 type Collection struct {
 	ID, Title, Description, ForkedFrom string
+	Cover                              string // optional https URL of a cover image
 	Revision                           int
 	CreatedAt, UpdatedAt               int64
 	Entries                            []Entry
@@ -139,7 +140,7 @@ type queryer interface {
 
 func loadCollection(ctx context.Context, q queryer, id string) (Collection, error) {
 	var c Collection
-	err := q.QueryRowContext(ctx, "SELECT id,title,description,forked_from,revision,created_at,updated_at FROM collections WHERE id=?", id).Scan(&c.ID, &c.Title, &c.Description, &c.ForkedFrom, &c.Revision, &c.CreatedAt, &c.UpdatedAt)
+	err := q.QueryRowContext(ctx, "SELECT id,title,description,forked_from,revision,created_at,updated_at,cover FROM collections WHERE id=?", id).Scan(&c.ID, &c.Title, &c.Description, &c.ForkedFrom, &c.Revision, &c.CreatedAt, &c.UpdatedAt, &c.Cover)
 	if err != nil {
 		return c, err
 	}
@@ -384,7 +385,7 @@ func (s *Store) ForkCollection(ctx context.Context, id string, revision int) (st
 		title = string([]rune(title)[:193])
 	}
 	title += " (copy)"
-	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,forked_from,created_at,updated_at) VALUES(?,?,?,?,?,?)", cloneID, title, c.Description, c.ID, now, now); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,forked_from,cover,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", cloneID, title, c.Description, c.ID, c.Cover, now, now); err != nil {
 		return "", err
 	}
 	for pos, e := range c.Entries {

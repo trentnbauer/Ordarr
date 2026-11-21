@@ -56,7 +56,7 @@ func (s *Store) CreateSubscribedCollection(ctx context.Context, url, policy stri
 	defer tx.Rollback()
 	sub = Subscription{ID: newID(), CollectionID: newID(), URL: url, Policy: policy, Revision: 1}
 	now := time.Now().Unix()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,created_at,updated_at) VALUES(?,?,?,?,?)", sub.CollectionID, c.Title, c.Description, now, now); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,cover,created_at,updated_at) VALUES(?,?,?,?,?,?)", sub.CollectionID, c.Title, c.Description, c.Cover, now, now); err != nil {
 		return sub, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO subscriptions(id,collection_id,url,policy,last_valid,etag,modified,checked_at,next_run,message) VALUES(?,?,?,?,?,?,?,?,?,'Source applied.')", sub.ID, sub.CollectionID, url, policy, data, etag, modified, now, now+60*60); err != nil {

@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,11 +16,39 @@ var ErrPlaylist = errors.New("Plex playlist reconciliation failed. The managed p
 var ErrPlaylistConflict = errors.New("The playlist is missing, ambiguous, or no longer has its Ordarr management marker. Explicit recovery is required.")
 
 type Playlist struct {
-	ID    string `json:"ratingKey"`
-	Title string `json:"title"`
-	Type  string `json:"playlistType"`
-	Smart bool   `json:"smart"`
+	ID      string `json:"ratingKey"`
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+	Type    string `json:"playlistType"`
+	Smart   bool   `json:"smart"`
 }
+
+// SplitMarker splits a destination title, "Name [Ordarr:<id>]", into the playlist name and the
+// ownership marker ("" when the title has none).
+func SplitMarker(title string) (name, marker string) {
+	if i := strings.LastIndex(title, " [Ordarr:"); i >= 0 && strings.HasSuffix(title, "]") {
+		return title[:i], title[i+1:]
+	}
+	return title, ""
+}
+
+// ownedAs reports whether a playlist in Plex is the one Ordarr created for title. Ordarr's marker
+// ("[Ordarr:<id>]") used to live in the playlist title; it now lives in the description so the title
+// stays clean. Both are accepted, so existing playlists keep working until they are migrated.
+func ownedAs(p Playlist, title string) bool {
+	name, marker := SplitMarker(title)
+	return p.Title == title || marker != "" && p.Title == name && strings.Contains(p.Summary, marker)
+}
+
+// playlistSummary is the description Ordarr writes: the collection's own, then the marker.
+func playlistSummary(description, marker string) string {
+	line := "Managed by Ordarr. Changes made here are overwritten. " + marker
+	if strings.TrimSpace(description) == "" {
+		return line
+	}
+	return strings.TrimSpace(description) + "\n\n" + line
+}
+
 type PlaylistItem struct {
 	RatingKey string     `json:"ratingKey"`
 	ItemID    flexibleID `json:"playlistItemID"`
@@ -85,7 +114,7 @@ func (c *Client) OwnedPlaylist(ctx context.Context, base, id, title, token, clie
 		return Playlist{}, ErrPlaylistConflict
 	}
 	p := body.Container.Items[0]
-	if p.ID != id || p.Title != title || p.Type != "video" || p.Smart {
+	if p.ID != id || !ownedAs(p, title) || p.Type != "video" || p.Smart {
 		return p, ErrPlaylistConflict
 	}
 	return p, nil
@@ -111,7 +140,7 @@ func (c *Client) FindManagedPlaylist(ctx context.Context, base, title, token, cl
 			return "", ErrPlaylist
 		}
 		for _, p := range mc.Items {
-			if p.Title == title {
+			if ownedAs(p, title) {
 				if found != "" || !ValidMetadataID(p.ID) || p.Type != "video" || p.Smart {
 					return "", ErrPlaylistConflict
 				}
@@ -358,4 +387,76 @@ func (c *Client) ReconcilePlaylist(ctx context.Context, base, id, title, machine
 		}
 	}
 	return guard()
+}
+
+// FinalizePlaylist moves the ownership marker from the playlist's title into its description and
+// gives the playlist its clean name. It never leaves a moment where neither holds the marker: the
+// description is written and read back first, and only then is the title changed (and read back,
+// with the old title restored if the change did not take). description is the collection's own.
+func (c *Client) FinalizePlaylist(ctx context.Context, base, id, title, description, token, clientID string) error {
+	name, marker := SplitMarker(title)
+	if marker == "" {
+		return nil
+	}
+	p, err := c.OwnedPlaylist(ctx, base, id, title, token, clientID)
+	if err != nil {
+		return err
+	}
+	summary := playlistSummary(description, marker)
+	if p.Summary != summary {
+		if err = c.playlistRequest(ctx, "PUT", base, "/playlists/"+id+"?"+url.Values{"summary": {summary}}.Encode(), token, clientID, nil); err != nil {
+			return err
+		}
+		if p, err = c.OwnedPlaylist(ctx, base, id, title, token, clientID); err != nil || !strings.Contains(p.Summary, marker) {
+			return ErrPlaylist // the description did not take: keep the marker in the title
+		}
+	}
+	if p.Title == name {
+		return nil
+	}
+	if err = c.playlistRequest(ctx, "PUT", base, "/playlists/"+id+"?"+url.Values{"title": {name}}.Encode(), token, clientID, nil); err != nil {
+		return err
+	}
+	if _, err = c.OwnedPlaylist(ctx, base, id, title, token, clientID); err != nil {
+		// The rename did not leave a playlist we can prove is ours: put the old title back.
+		c.playlistRequest(ctx, "PUT", base, "/playlists/"+id+"?"+url.Values{"title": {title}}.Encode(), token, clientID, nil)
+		return ErrPlaylist
+	}
+	return nil
+}
+
+// UploadPlaylistPoster sets a playlist's poster from image bytes (PNG, JPEG or WebP).
+func (c *Client) UploadPlaylistPoster(ctx context.Context, base, id, title string, data []byte, contentType, token, clientID string) error {
+	if !ValidMetadataID(id) || len(data) == 0 || len(data) > 2<<20 || contentType != "image/png" && contentType != "image/jpeg" && contentType != "image/webp" {
+		return ErrPlaylist
+	}
+	if _, err := c.OwnedPlaylist(ctx, base, id, title, token, clientID); err != nil {
+		return err
+	}
+	if !ServiceOrigin.MatchString(base) {
+		return ErrURL
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", base+"/library/metadata/"+id+"/posters", bytes.NewReader(data))
+	if err != nil {
+		return ErrPlaylist
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Plex-Token", token)
+	req.Header.Set("X-Plex-Client-Identifier", clientID)
+	req.Header.Set("X-Plex-Product", "Ordarr")
+	req.Header.Set("X-Plex-Version", clientVersion)
+	res, err := c.http.Do(req)
+	if err != nil {
+		return ErrPlaylist
+	}
+	defer res.Body.Close()
+	io.Copy(io.Discard, io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode == 401 || res.StatusCode == 403 || res.StatusCode == 498 {
+		return ErrAuth
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return ErrPlaylist
+	}
+	return nil
 }

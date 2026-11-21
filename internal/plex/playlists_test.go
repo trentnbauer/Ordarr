@@ -30,7 +30,7 @@ func TestPlaylistReconciliationRecoveryAndProtection(t *testing.T) {
 				}
 				if r.Method == "GET" {
 					if path == "/playlists/50" {
-						json.NewEncoder(w).Encode(map[string]any{"MediaContainer": map[string]any{"Metadata": []Playlist{{"50", title, "video", false}}}})
+						json.NewEncoder(w).Encode(map[string]any{"MediaContainer": map[string]any{"Metadata": []Playlist{{ID: "50", Title: title, Type: "video"}}}})
 					} else {
 						json.NewEncoder(w).Encode(map[string]any{"MediaContainer": map[string]any{"size": len(items), "Metadata": items}})
 					}

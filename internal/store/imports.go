@@ -11,6 +11,9 @@ func ValidatePortableCollection(c Collection) error {
 	if err := validateMetadata(c.Title, c.Description); err != nil {
 		return err
 	}
+	if !validCover(c.Cover) {
+		return invalid("A cover must be an https:// image URL of at most 2,048 characters.")
+	}
 	if len(c.Entries) > MaxEntries {
 		return ErrInvalid
 	}
@@ -38,7 +41,7 @@ func (s *Store) ImportCollection(ctx context.Context, c Collection) (string, err
 	defer tx.Rollback()
 	id := newID()
 	now := time.Now().Unix()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,created_at,updated_at) VALUES(?,?,?,?,?)", id, c.Title, c.Description, now, now); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO collections(id,title,description,cover,created_at,updated_at) VALUES(?,?,?,?,?,?)", id, c.Title, c.Description, c.Cover, now, now); err != nil {
 		return "", err
 	}
 	for i, e := range c.Entries {
@@ -106,6 +109,6 @@ func replaceSource(ctx context.Context, tx *sql.Tx, sub Subscription, c Collecti
 	if _, err = tx.ExecContext(ctx, "DELETE FROM entries WHERE collection_id=? AND position<0", sub.CollectionID); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "UPDATE collections SET title=?,description=?,revision=revision+1,updated_at=? WHERE id=?", c.Title, c.Description, time.Now().Unix(), sub.CollectionID)
+	_, err = tx.ExecContext(ctx, "UPDATE collections SET title=?,description=?,cover=?,revision=revision+1,updated_at=? WHERE id=?", c.Title, c.Description, c.Cover, time.Now().Unix(), sub.CollectionID)
 	return err
 }
