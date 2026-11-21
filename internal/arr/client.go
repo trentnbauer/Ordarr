@@ -92,6 +92,8 @@ type Snapshot struct {
 	Queue           []QueueItem
 }
 
+const maxResponse = 256 << 20
+
 func resource(c Connection) string {
 	if c.Kind == "radarr" {
 		return "movie"
@@ -136,8 +138,10 @@ func (c *Client) request(ctx context.Context, conn Connection, method, path stri
 		return ErrAPI
 	}
 	if out != nil {
-		data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20+1))
-		if err != nil || len(data) > 8<<20 || json.Unmarshal(data, out) != nil {
+		// Stream-decode: a large library's movie/series list can exceed 8 MiB, but only
+		// the few decoded fields are kept in memory. Truncation at the cap fails the decode.
+		dec := json.NewDecoder(io.LimitReader(res.Body, maxResponse))
+		if dec.Decode(out) != nil || dec.Decode(&struct{}{}) != io.EOF {
 			return ErrAPI
 		}
 	}

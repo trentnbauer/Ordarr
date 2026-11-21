@@ -83,6 +83,18 @@ func TestDocumentedMovieAndWholeSeriesRequests(t *testing.T) {
 		})
 	}
 }
+func TestLargeResponseAndTrailingData(t *testing.T) {
+	big := `[` + strings.Repeat(`{"id":1,"pad":"`+strings.Repeat("x", 1000)+`"},`, 10000) + `{"id":2}]` // ~10 MB, over the old 8 MiB cap
+	for body, ok := range map[string]bool{big: true, `[{"id":1}] junk`: false, `[{"id":1}`: false} {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(body)) }))
+		var out []struct{ ID int }
+		err := New().request(context.Background(), Connection{"radarr", s.URL, "k"}, "GET", "movie", nil, &out)
+		if (err == nil) != ok || ok && len(out) != 10001 {
+			t.Errorf("ok=%v err=%v n=%d", ok, err, len(out))
+		}
+		s.Close()
+	}
+}
 func TestArrRejectsAmbiguityAndRedactsAPIResponse(t *testing.T) {
 	for _, body := range []string{`[{"tmdbId":42,"title":"A","titleSlug":"a"},{"tmdbId":42,"title":"B","titleSlug":"b"}]`, `[{"tmdbId":43,"title":"Wrong","titleSlug":"wrong"}]`} {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(body)) }))
