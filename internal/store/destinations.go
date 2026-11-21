@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -164,4 +165,52 @@ func (s *Store) ApproveSyncRun(ctx context.Context, id int64) error {
 		return err
 	}
 	return plexChanged(result)
+}
+
+// ActiveSyncs is the set of destinations that have a playlist sync queued or running.
+func (s *Store) ActiveSyncs(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.DB.QueryContext(ctx, "SELECT target FROM jobs WHERE kind IN ('sync','publish') AND state IN ('queued','running')")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var target string
+		if err = rows.Scan(&target); err != nil {
+			return nil, err
+		}
+		id, _, _ := strings.Cut(target, "@") // publish jobs are "<destination>@<revision>"
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
+// SyncFailureStreaks counts, per destination, how many of its most recent syncs failed in a row
+// (looking at the last five). A destination whose latest sync succeeded has no entry.
+func (s *Store) SyncFailureStreaks(ctx context.Context) (map[string]int, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT destination_id,state FROM sync_runs s
+ WHERE (SELECT count(*) FROM sync_runs x WHERE x.destination_id=s.destination_id AND (x.created_at>s.created_at OR (x.created_at=s.created_at AND x.id>s.id)))<5
+ ORDER BY destination_id, created_at DESC, id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	broken := map[string]bool{}
+	for rows.Next() {
+		var id, state string
+		if err = rows.Scan(&id, &state); err != nil {
+			return nil, err
+		}
+		if broken[id] {
+			continue
+		}
+		if state == "failed" {
+			out[id]++
+		} else {
+			broken[id] = true
+		}
+	}
+	return out, rows.Err()
 }

@@ -34,6 +34,8 @@ type overview struct {
 	Defaults     store.Defaults
 	Destinations map[string][]store.Destination
 	Latest       map[string]store.SyncRun
+	SyncActive   map[string]bool // destinations with a sync queued or running (a Retry in progress)
+	FailStreak   map[string]int  // consecutive failed syncs per destination
 	Sources      map[string]store.SourceState
 	Refs         []store.CollectionRef
 	Jellyfin     []store.JellyfinConnection
@@ -66,6 +68,12 @@ func (a *App) loadOverview(ctx context.Context) (*overview, error) {
 		o.Destinations[d.CollectionID] = append(o.Destinations[d.CollectionID], d)
 	}
 	if o.Latest, err = a.store.LatestSyncRuns(ctx); err != nil {
+		return nil, err
+	}
+	if o.SyncActive, err = a.store.ActiveSyncs(ctx); err != nil {
+		return nil, err
+	}
+	if o.FailStreak, err = a.store.SyncFailureStreaks(ctx); err != nil {
 		return nil, err
 	}
 	if o.Sources, err = a.store.SourceStates(ctx); err != nil {
@@ -222,6 +230,12 @@ func collectionStatus(o *overview, values map[string]availability, id string) (s
 		if run, ok := o.Latest[d.ID]; ok {
 			switch run.State {
 			case "failed":
+				switch {
+				case o.SyncActive[d.ID]:
+					return "Syncing again…", false
+				case o.FailStreak[d.ID] < failuresBeforeAsking:
+					return "Last sync failed · trying again soon", false
+				}
 				return "Sync failed · retry", true
 			case "pending":
 				return "Playlist change waiting for approval", true
@@ -408,4 +422,18 @@ func (a *App) busy(ctx context.Context) (bool, string, error) {
 		return true, name(queued[0]) + " waiting", nil
 	}
 	return false, "", nil
+}
+
+// failuresBeforeAsking is how many syncs in a row must fail before the administrator is asked to
+// look: a single failure (Plex busy importing, a network blip) retries itself on the next schedule.
+const failuresBeforeAsking = 2
+
+// syncNeedsYou says whether a destination's last sync is something the administrator can act on: a
+// change waiting for approval, or failures that have repeated and are not being retried right now.
+func (o *overview) syncNeedsYou(dest string) bool {
+	run, ok := o.Latest[dest]
+	if !ok {
+		return false
+	}
+	return run.State == "pending" || run.State == "failed" && !o.SyncActive[dest] && o.FailStreak[dest] >= failuresBeforeAsking
 }

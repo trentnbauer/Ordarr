@@ -79,10 +79,12 @@ func (a *App) activity(ctx context.Context, o *overview) (*activityView, error) 
 				continue
 			}
 			w := waitingSync{DestinationID: d.ID, CollectionID: id, Collection: titles[id], Server: o.connectionName(d.ConnectionID), Message: run.Message, RunID: run.ID}
-			switch run.State {
-			case "failed":
+			switch {
+			case !o.syncNeedsYou(d.ID):
+				// A failed sync that is being retried, or has failed only once, is not for you to act on.
+			case run.State == "failed":
 				v.Failed = append(v.Failed, w)
-			case "pending":
+			case run.State == "pending":
 				v.Approvals = append(v.Approvals, w)
 			}
 		}

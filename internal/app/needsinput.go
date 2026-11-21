@@ -47,7 +47,7 @@ func (a *App) inputCount(ctx context.Context, o *overview, values map[string]ava
 	}
 	for _, list := range o.Destinations {
 		for _, d := range list {
-			if run, ok := o.Latest[d.ID]; ok && (run.State == "failed" || run.State == "pending") {
+			if o.syncNeedsYou(d.ID) {
 				n++
 			}
 		}
