@@ -260,8 +260,9 @@ func (a *App) collectionDownloads(w http.ResponseWriter, r *http.Request) {
 		a.collectionError(w, err)
 		return
 	}
-	// The form sends "disable=yes" for "Don't download missing items for this collection".
-	if err := a.store.SetCollectionDownloads(r.Context(), id, r.PostForm.Get("disable") != "yes"); err != nil {
+	// The form sends "enabled=yes" while "Download missing items for this collection" is ticked;
+	// an unticked box sends nothing, which opts the collection out.
+	if err := a.store.SetCollectionDownloads(r.Context(), id, r.PostForm.Get("enabled") == "yes"); err != nil {
 		a.collectionError(w, err)
 		return
 	}
