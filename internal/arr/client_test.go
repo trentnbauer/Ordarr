@@ -13,6 +13,7 @@ func TestDocumentedMovieAndWholeSeriesRequests(t *testing.T) {
 	for _, kind := range []string{"radarr", "sonarr"} {
 		t.Run(kind, func(t *testing.T) {
 			posts := 0
+			var searches []map[string]any
 			exists := false
 			var payload map[string]any
 			s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -54,6 +55,11 @@ func TestDocumentedMovieAndWholeSeriesRequests(t *testing.T) {
 					} else {
 						out = []any{}
 					}
+				case "/api/v3/command":
+					var command map[string]any
+					json.NewDecoder(r.Body).Decode(&command)
+					searches = append(searches, command)
+					out = map[string]any{"id": 1}
 				default:
 					t.Errorf("unsafe endpoint %s", r.URL.Path)
 					http.Error(w, "bad", 400)
@@ -76,6 +82,9 @@ func TestDocumentedMovieAndWholeSeriesRequests(t *testing.T) {
 			options := payload["addOptions"].(map[string]any)
 			if kind == "sonarr" && (options["monitor"] != "all" || options["searchForMissingEpisodes"] != true) {
 				t.Fatal("scope not explicit", payload)
+			}
+			if len(searches) != 1 || (kind == "radarr" && (searches[0]["name"] != "MoviesSearch" || searches[0]["movieIds"].([]any)[0] != float64(7))) || (kind == "sonarr" && (searches[0]["name"] != "SeriesSearch" || searches[0]["seriesId"] != float64(7))) {
+				t.Fatalf("no search was triggered after adding: %v", searches)
 			}
 			if _, err := c.Add(context.Background(), conn, 42, 1, 2); err != nil || posts != 1 {
 				t.Fatal("retry duplicated request", err)

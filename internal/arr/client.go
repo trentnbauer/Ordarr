@@ -301,6 +301,9 @@ func (c *Client) AddGuarded(ctx context.Context, conn Connection, id, profile, r
 		return Media{}, err
 	}
 	if item, ok, e := Existing(conn, snapshot.Media, id); e != nil || ok {
+		if e == nil && item.Monitored && !item.HasFile && item.Statistics.EpisodeFileCount == 0 {
+			c.Search(ctx, conn, item.ID) // already added (perhaps by an earlier uncertain attempt) but nothing fetched yet
+		}
 		return item, e
 	}
 	var rootPath string
@@ -350,7 +353,19 @@ func (c *Client) AddGuarded(ctx context.Context, conn Connection, id, profile, r
 	if !exact(conn, added, id) || added.ID < 1 {
 		return added, ErrAPI
 	}
+	// addOptions asks for a search too, but not every version honours it: ask explicitly. Best effort:
+	// the title is added either way, and the hourly pass or a retry searches again.
+	c.Search(ctx, conn, added.ID)
 	return added, nil
+}
+
+// Search tells Sonarr/Radarr to look for releases of an item it already has.
+func (c *Client) Search(ctx context.Context, conn Connection, id int) error {
+	command := map[string]any{"name": "MoviesSearch", "movieIds": []int{id}}
+	if conn.Kind == "sonarr" {
+		command = map[string]any{"name": "SeriesSearch", "seriesId": id}
+	}
+	return c.request(ctx, conn, "POST", "command", command, nil)
 }
 func Status(s Snapshot, item Media) string {
 	state := "missing"
