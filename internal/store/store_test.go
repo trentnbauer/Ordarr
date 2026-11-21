@@ -19,7 +19,7 @@ func TestMigrationPersistenceAndSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version int
-	if err = s.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 13 {
+	if err = s.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 14 {
 		t.Fatalf("schema: %d %v", version, err)
 	}
 	var journal string

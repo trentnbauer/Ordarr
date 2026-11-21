@@ -229,6 +229,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /settings/acquisition/{id}/refresh", a.protected(a.arrRefresh))
 	m.HandleFunc("POST /settings/acquisition/{id}/requests", a.protected(a.proposeRequest))
 	m.HandleFunc("POST /collections/{id}/downloads", a.protected(a.collectionDownloads))
+	m.HandleFunc("POST /settings/acquisition/{id}/default", a.protected(a.arrDefault))
 	m.HandleFunc("POST /settings/acquisition/{id}/delete", a.protected(a.deleteArr))
 	m.HandleFunc("POST /requests/{id}/approve", a.protected(a.approveRequest))
 	m.HandleFunc("GET /settings/jellyfin", a.protected(a.jellyfinSettings))
@@ -336,7 +337,12 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, p page)
 		case p.ArrPage != nil && p.ArrPage.Selected != nil:
 			active = p.ArrPage.Selected.Connection.ID
 		}
-		p.ConnList = connList(o, active)
+		defaults, err := a.store.ArrDefaults(r.Context())
+		if err != nil {
+			a.fail(w, "navigation state failed")
+			return
+		}
+		p.ConnList = connList(o, active, defaults)
 	}
 	var body bytes.Buffer
 	if err = a.templates.ExecuteTemplate(&body, "page.html", p); err != nil {

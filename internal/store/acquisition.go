@@ -59,6 +59,25 @@ func (s *Store) CreateArr(ctx context.Context, c ArrConnection) error {
 		return err
 	}
 	_, err = s.DB.ExecContext(ctx, "INSERT INTO arr_connections(id,kind,name,base_url,key_cipher,profile_id,root_id,snapshot,checked_at,require_approval) VALUES(?,?,?,?,?,?,?,?,?,0)", c.ID, c.Kind, c.Name, c.BaseURL, c.KeyCipher, c.ProfileID, c.RootID, data, time.Now().Unix())
+	if err != nil {
+		return err
+	}
+	return s.adoptAsDefault(ctx, c)
+}
+
+// adoptAsDefault makes the first instance of a kind the default for new collections, and adds it
+// to every existing collection that has no instance of that kind yet, so connecting Sonarr after
+// collections exist still works without any further step.
+func (s *Store) adoptAsDefault(ctx context.Context, c ArrConnection) error {
+	defaults, err := s.ArrDefaults(ctx)
+	if err != nil || defaults[c.Kind] != "" {
+		return err
+	}
+	if err = s.SetArrDefault(ctx, c.Kind, c.ID); err != nil {
+		return err
+	}
+	_, err = s.DB.ExecContext(ctx, `INSERT OR IGNORE INTO collection_arr(collection_id,connection_id)
+ SELECT col.id,? FROM collections col WHERE NOT EXISTS (SELECT 1 FROM collection_arr ca JOIN arr_connections a ON a.id=ca.connection_id WHERE ca.collection_id=col.id AND a.kind=?)`, c.ID, c.Kind)
 	return err
 }
 func (s *Store) UpdateArrSnapshot(ctx context.Context, c ArrConnection, snapshot arr.Snapshot) error {
@@ -289,7 +308,7 @@ func (s *Store) ValidateAcquisition(ctx context.Context, r AcquisitionRequest, c
 			provider, kind = "tmdb", "movie"
 		}
 		var count int
-		if err = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM entries e WHERE e.collection_id NOT IN (SELECT collection_id FROM collection_no_download) AND e.provider=? AND e.kind=? AND e.external_id=?", provider, kind, strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
+		if err = s.DB.QueryRowContext(ctx, "SELECT count(*) FROM entries e JOIN collection_arr ca ON ca.collection_id=e.collection_id AND ca.connection_id=? WHERE e.collection_id NOT IN (SELECT collection_id FROM collection_no_download) AND e.provider=? AND e.kind=? AND e.external_id=?", c.ID, provider, kind, strconv.Itoa(r.ProviderID)).Scan(&count); err != nil {
 			return err
 		}
 		if count == 0 {

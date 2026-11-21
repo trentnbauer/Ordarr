@@ -34,6 +34,7 @@ type addView struct {
 	Servers, ReadOnly             []plexView
 	Jellyfin                      []string
 	ServerID, Playlist, Policy    string
+	ArrChoices                    []arrChoice
 	Defaults                      store.Defaults
 }
 
@@ -92,6 +93,14 @@ func (a *App) renderAdd(w http.ResponseWriter, r *http.Request, status int, sour
 	}
 	for _, j := range o.Jellyfin {
 		v.Jellyfin = append(v.Jellyfin, j.Name)
+	}
+	defaultArrs, err := a.store.ArrDefaults(ctx)
+	if err != nil {
+		a.fail(w, "defaults failed")
+		return
+	}
+	for _, conn := range o.Arr {
+		v.ArrChoices = append(v.ArrChoices, arrChoice{ID: conn.ID, Name: conn.Name, Kind: map[string]string{"sonarr": "Sonarr", "radarr": "Radarr"}[conn.Kind], Selected: defaultArrs[conn.Kind] == conn.ID})
 	}
 	v.ServerID = o.Defaults.ConnectionID
 	if !isServer(v.Servers, v.ServerID) && len(v.Servers) > 0 {
@@ -323,6 +332,13 @@ func (a *App) addCollection(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.collectionError(w, err)
 		return
+	}
+	// New collections start with the default Sonarr/Radarr; the dialog's list can change that.
+	if _, listed := r.PostForm["instances_listed"]; listed {
+		if err = a.store.SetCollectionArrs(ctx, id, r.PostForm["instance"]); err != nil {
+			a.collectionError(w, err)
+			return
+		}
 	}
 	if server != "" {
 		destination, err := a.store.CreateDestinationNamed(ctx, id, server, "authoritative", defaults.SyncInterval, r.PostForm.Get("playlist"))

@@ -21,7 +21,7 @@ type connLink struct{ Label, Href string }
 
 // connList builds the list shown on the left of every connection page. active is the ID of
 // the selected connection ("" for none; the Plex page passes "plex").
-func connList(o *overview, active string) *connListView {
+func connList(o *overview, active string, defaults map[string]string) *connListView {
 	v := &connListView{Connect: []connLink{
 		{"Plex server", "/settings/plex#add-server"}, {"Sonarr", "/settings/acquisition?new=1"},
 		{"Radarr", "/settings/acquisition?new=1"}, {"Jellyfin", "/settings/jellyfin?new=1"}}}
@@ -60,6 +60,9 @@ func connList(o *overview, active string) *connListView {
 		default:
 			item.Status = "Connected"
 		}
+		if defaults[c.Kind] == c.ID {
+			item.Status += " · default"
+		}
 		v.Items = append(v.Items, item)
 	}
 	// A missing downloader is shown plainly, and flagged when the other one is set up.
@@ -80,7 +83,7 @@ func (a *App) connectionsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := "/settings/plex"
-	if items := connList(o, "").Items; len(items) > 0 {
+	if items := connList(o, "", nil).Items; len(items) > 0 {
 		target = items[0].Href
 	}
 	http.Redirect(w, r, target, 303)

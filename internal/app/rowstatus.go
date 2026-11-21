@@ -34,7 +34,7 @@ const (
 
 // missingStatus derives the status of a missing entry from data Ordarr already holds: the last
 // Sonarr/Radarr snapshot (library and queue) and its own request log. Nothing is fetched here.
-func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool) rowStatus {
+func missingStatus(arrs []store.ArrConnection, requests map[string]store.AcquisitionRequest, e store.Entry, autoOn, optedOut bool, chosen map[string]bool) rowStatus {
 	if len(arrs) == 0 {
 		return rowStatus{Label: statusNotAsked, Detail: "Connect Sonarr or Radarr to download it.", rank: 1}
 	}
@@ -44,7 +44,7 @@ func missingStatus(arrs []store.ArrConnection, requests map[string]store.Acquisi
 		if !ok {
 			continue
 		}
-		s := statusOn(c, requests, id, autoOn && !optedOut)
+		s := statusOn(c, requests, id, autoOn && !optedOut && chosen[c.ID])
 		if s.rank > best.rank {
 			best = s
 		}
@@ -78,7 +78,7 @@ func statusOn(c store.ArrConnection, requests map[string]store.AcquisitionReques
 		if auto {
 			return rowStatus{Label: statusAuto, Detail: c.Name + " is asked on the next hourly check.", RequestVia: c.ID, rank: 3}
 		}
-		return rowStatus{Label: statusNotAsked, Detail: "Automatic downloads are off for this collection.", RequestVia: c.ID, rank: 3}
+		return rowStatus{Label: statusNotAsked, Detail: "Not downloading from " + c.Name + " for this collection.", RequestVia: c.ID, rank: 3}
 	}
 	return rowStatus{Label: statusNotAsked, Detail: "Choose a quality profile and root folder for " + c.Name + " first.", rank: 1}
 }
