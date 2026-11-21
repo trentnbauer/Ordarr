@@ -19,16 +19,19 @@
 <p class="statusline{{if $v.StatusWarn}} warn{{end}}" id="collection-status" title="Plex collections can't mix movies and episodes or keep one order across libraries, so Ordarr publishes a playlist instead.">{{$v.StatusLine}}</p>
 <nav class="tabs" aria-label="Collection sections">{{$id:=$c.ID}}
 <a class="tab" href="/collections/{{$id}}" {{if eq $v.Tab "order"}}aria-current="page"{{end}}>Order</a>
-<a class="tab" href="/collections/{{$id}}?tab=advanced" {{if eq $v.Tab "advanced"}}aria-current="page"{{end}}>Advanced{{if and $v.Source $v.Source.Proposed}} <span class="count">1</span>{{end}}</a></nav>
+<a class="tab" href="/collections/{{$id}}?tab=collection" {{if eq $v.Tab "collection"}}aria-current="page"{{end}}>Collection{{if and $v.Source $v.Source.Proposed}} <span class="count">1</span>{{end}}</a>
+<a class="tab" href="/collections/{{$id}}?tab=target" {{if eq $v.Tab "target"}}aria-current="page"{{end}}>Target{{if $v.SyncFailed}} <span class="count">!</span>{{end}}</a>
+<a class="tab" href="/collections/{{$id}}?tab=downloads" {{if eq $v.Tab "downloads"}}aria-current="page"{{end}}>Downloads</a>
+<a class="tab" href="/collections/{{$id}}?tab=history" {{if eq $v.Tab "history"}}aria-current="page"{{end}}>History</a></nav>
 {{template "messages" .}}
 {{if $v.Created}}<p role="status" class="notice page-msg">Collection added.{{if $v.Destinations}} Ordarr is scanning {{$v.Server.Name}} and building the playlist now; the line above shows progress.{{else if $v.HasServer}} Ordarr is checking it against {{$v.Server.Name}}.{{end}} Missing items keep their place and go into the playlist once Plex has them.</p>{{end}}
-{{if eq $v.Tab "order"}}{{template "tab-order" .}}{{else}}{{template "tab-advanced" .}}{{end}}
+{{if eq $v.Tab "order"}}{{template "tab-order" .}}{{else if eq $v.Tab "collection"}}{{template "tab-collection" .}}{{else if eq $v.Tab "target"}}{{template "tab-publishing" .}}{{else if eq $v.Tab "downloads"}}{{template "tab-downloads" .}}{{else}}{{template "tab-history" .}}{{end}}
 </section>{{end}}
 
 {{define "revision-fields"}}<input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{.Collection.Revision}}">{{end}}
 
 {{define "tab-order"}}{{$c:=.Collection}}{{$v:=.Detail}}{{$root:=.}}
-{{if and $v.Source $v.Source.Proposed}}<p class="notice page-msg">A new version of the source is waiting for your OK. <a href="/collections/{{$c.ID}}?tab=advanced#source-updates">Review it</a></p>{{end}}
+{{if and $v.Source $v.Source.Proposed}}<p class="notice page-msg">A new version of the source is waiting for your OK. <a href="/collections/{{$c.ID}}?tab=collection#source-updates">Review it</a></p>{{end}}
 {{if $v.Source}}<div class="bulkbar"><span class="grow">This collection follows its source, so its order is read-only here.</span><form class="inline-form" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="fork"><button class="btn">Make an editable copy</button></form></div>
 {{else}}{{if or $v.Adding .EntryID}}{{template "entry-form" .}}{{end}}
 <form id="bulk-actions" class="bulkbar" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<span class="strong" id="selected-count" aria-live="polite">Select entries to move, repeat or remove</span>
@@ -63,7 +66,7 @@
 <form class="inline-form" method="post" action="/collections/{{$c.ID}}/source"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="revision" value="{{$s.Revision}}"><input type="hidden" name="pending_hash" value="{{$v.Source.PendingHash}}"><button class="btn btn-primary" name="action" value="approve">Apply update</button> <button class="link-btn" name="action" value="skip">Skip this version</button></form></div>
 <div class="stats flat small"><div class="stat"><span class="v">{{$v.Added}}</span><span class="l">added</span></div><div class="stat"><span class="v">{{$v.Moved}}</span><span class="l">moved</span></div><div class="stat"><span class="v">{{$v.Changed}}</span><span class="l">changed</span></div><div class="stat"><span class="v">{{$v.Removed}}</span><span class="l">removed</span></div></div>
 <div class="rows">{{range $v.Changes}}<div class="change">{{if eq .Kind "added"}}<span class="sym add" aria-hidden="true">+</span><span class="k">Added</span><span>{{.Title}}</span><span class="where">at #{{.To}}</span>{{else if eq .Kind "moved"}}<span class="sym" aria-hidden="true">↕</span><span class="k">Moved</span><span>{{.Title}}</span><span class="where">#{{.From}} → #{{.To}}</span>{{else if eq .Kind "changed"}}<span class="sym" aria-hidden="true">~</span><span class="k">Changed</span><span>{{.Title}}</span><span class="where">at #{{.To}}</span>{{else}}<span class="sym add" aria-hidden="true">−</span><span class="k">Removed</span><span>{{.Title}}</span><span class="where">was #{{.From}}</span>{{end}}</div>{{end}}</div>
-<p class="note">Want to change this order yourself? Make an editable copy from Advanced first. Ordarr never overwrites a copy.</p>
+<p class="note">Want to change this order yourself? Make an editable copy from the Collection tab first. Ordarr never overwrites a copy.</p>
 {{else}}<div class="empty"><h2>Up to date</h2><p>Last checked {{ago $s.CheckedAt}}. {{$s.Message}}</p>{{if $s.Failures}}<p class="alert">The last check failed, so the last good version is still in use. Ordarr will try again later.</p>{{end}}</div>{{end}}
 </div><div class="pane tint"><p class="kicker">Source</p><p class="mono">{{$s.URL}}</p>
 <form method="post" action="/collections/{{$c.ID}}/source"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn" name="action" value="fetch">Check now</button></form>
@@ -76,27 +79,28 @@
 </div></div>{{end}}
 {{end}}
 
-{{define "tab-history"}}{{$v:=.Detail}}<div class="rows">{{range $v.History}}<div class="history"><span class="when">{{clock .When}}</span><span class="what{{if eq .Class "warn"}} warn{{end}}">{{.Kind}}</span><span>{{.Result}}</span></div>{{else}}<p class="note">Nothing has run yet.</p>{{end}}</div>{{end}}
-
-{{define "tab-advanced"}}{{$v:=.Detail}}
-<h2 class="adv-h" id="source-updates">Source and updates</h2>{{template "tab-source" .}}
-<div class="rule"></div><h2 class="adv-h">Plex playlist</h2>{{template "tab-publishing" .}}
-<div class="rule"></div><h2 class="adv-h">Recent activity</h2>{{template "tab-history" .}}
-<div class="rule"></div><h2 class="adv-h">This collection</h2>{{template "tab-settings" .}}{{end}}
+{{define "tab-history"}}{{$v:=.Detail}}<h2 class="adv-h">Recent activity</h2><div class="rows">{{range $v.History}}<div class="history"><span class="when">{{clock .When}}</span><span class="what{{if eq .Class "warn"}} warn{{end}}">{{.Kind}}</span><span>{{.Result}}</span></div>{{else}}<p class="note">Nothing has run yet.</p>{{end}}</div>{{end}}
 
 {{define "sync-runs"}}{{$root:=.}}<div class="rows">{{range .Detail.Runs}}<div class="history"><span class="when">{{clock .CreatedAt}}</span><span class="what{{if eq .State "failed"}} warn{{else if ne .State "succeeded"}} muted{{end}}">{{runState .State}}</span><span>{{if .Destination}}{{.Destination}} · {{end}}{{if eq .State "succeeded"}}{{plural (len .Proposed) "item" "items"}} · {{end}}{{.Message}}{{if or (eq .State "pending") (eq .State "approved")}}<form class="inline-form" method="post" action="/sync-runs/{{.ID}}/approve"><input type="hidden" name="csrf" value="{{$root.CSRF}}"> <button class="btn btn-sm btn-dark">Approve this exact order</button></form>{{end}}</span></div>{{else}}<p class="note">No syncs yet.</p>{{end}}</div>{{end}}
 
-{{define "tab-settings"}}{{$c:=.Collection}}{{$v:=.Detail}}<div class="panes"><div class="pane">
+{{define "tab-details"}}{{$c:=.Collection}}{{$v:=.Detail}}<div class="panes"><div class="pane">
 <p class="kicker ink">Details</p>{{if $v.Source}}<p class="note">The title and description come from the source. Make an editable copy to change them.</p>{{end}}
 <form class="stack" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="metadata"><div class="field"><label for="title">Collection title</label><input class="input" id="title" name="title" value="{{$c.Title}}" maxlength="200" required {{if $v.Source}}disabled{{end}}></div><div class="field"><label for="description">Description</label><textarea class="input" id="description" name="description" maxlength="2000" rows="4" {{if $v.Source}}disabled{{end}}>{{$c.Description}}</textarea></div>{{if not $v.Source}}<div><button class="btn btn-primary">Save details</button></div>{{end}}</form>
 <div class="rule"></div><p class="kicker ink">Copy and export</p>
 <form method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="fork"><button class="btn">Duplicate as an editable copy</button></form>
 <p class="actions"><a class="btn" href="/collections/{{$c.ID}}/export?format=yaml">Export YAML</a><a class="btn" href="/collections/{{$c.ID}}/export?format=json">Export JSON</a></p><p class="note">Exports never include servers, playlists or credentials.</p>
-</div><div class="pane tint"><p class="kicker ink">Downloads</p>
+</div><div class="pane tint"><div class="rule"></div><p class="kicker warn">Delete</p>
+<details class="box"><summary>Delete this collection</summary><p class="note">This removes the collection and its entries from Ordarr. It never deletes media, Plex playlists or other collections. Copies are kept.</p><form class="stack-sm" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="delete"><div class="field"><label for="confirm-title">Type the collection title to confirm</label><input class="input" id="confirm-title" name="confirm_title" required autocomplete="off"></div><div><button class="btn btn-primary">Delete collection permanently</button></div></form></details>
+</div></div>{{end}}
+
+{{define "tab-collection"}}{{$v:=.Detail}}
+<h2 class="adv-h" id="source-updates">Where it comes from</h2>{{template "tab-source" .}}
+<div class="rule"></div><h2 class="adv-h">Details, copies and delete</h2>{{template "tab-details" .}}{{end}}
+
+{{define "tab-downloads"}}{{$c:=.Collection}}{{$v:=.Detail}}<div class="panes"><div class="pane"><h2 class="adv-h">Download missing items</h2>
 {{if $v.Arr}}<form class="stack-sm" method="post" action="/collections/{{$c.ID}}/downloads"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="instances_listed" value="1"><label class="check"><input type="checkbox" name="enabled" value="yes" {{if not $v.NoDownload}}checked{{end}}> Download missing items for this collection</label>
 <fieldset class="field"><legend class="label">Download from</legend>{{range $v.ArrChoices}}<label class="check"><input type="checkbox" name="instance" value="{{.ID}}" {{if .Selected}}checked{{end}}> {{.Name}} <span class="note">{{.Kind}}</span></label>{{end}}</fieldset>
 <div><button class="btn btn-sm">Save</button></div><p class="note">{{if $v.NoDownload}}Unticked: missing movies and series are left alone.{{else if $v.DownloadsReady}}Missing movies and series are requested from the ticked instances automatically. New collections start with each kind's default.{{else}}Automatic downloads are off or not fully set up. <a href="/settings/acquisition">Check Sonarr / Radarr</a>.{{end}}</p></form>
 {{else}}<p class="note">Connect Sonarr or Radarr to download missing movies and series automatically. <a href="/settings/acquisition">Connect</a></p>{{end}}
-<div class="rule"></div><p class="kicker warn">Delete</p>
-<details class="box"><summary>Delete this collection</summary><p class="note">This removes the collection and its entries from Ordarr. It never deletes media, Plex playlists or other collections. Copies are kept.</p><form class="stack-sm" method="post" action="/collections/{{$c.ID}}">{{template "revision-fields" .}}<input type="hidden" name="action" value="delete"><div class="field"><label for="confirm-title">Type the collection title to confirm</label><input class="input" id="confirm-title" name="confirm_title" required autocomplete="off"></div><div><button class="btn btn-primary">Delete collection permanently</button></div></form></details>
-</div></div>{{end}}
+</div>
+<div class="pane tint"><p class="kicker ink">What's happening</p><div class="rows">{{range $v.StatusCounts}}<div class="r"><span{{if .Warn}} class="warn"{{end}}>{{.Label}}</span><span class="meta">{{.N}}</span></div>{{else}}<p class="note">Nothing is waiting on a download.</p>{{end}}</div><p class="note">Each row on the Order tab shows its own status, with Request now where it applies.</p></div></div>{{end}}

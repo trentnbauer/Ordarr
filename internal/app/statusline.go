@@ -56,3 +56,27 @@ func statusLine(v *collectionView, entries int) (line string, warn bool) {
 	}
 	return strings.Join(parts, " · "), warn
 }
+
+// statusCount is how many rows of a collection are in one download status.
+type statusCount struct {
+	Label string
+	N     int
+	Warn  bool
+}
+
+// statusCounts tallies the rows that are not playable yet, in the order a collection moves through them.
+func statusCounts(rows []orderRow) []statusCount {
+	count := map[string]int{}
+	for _, r := range rows {
+		if r.Status.Label != "" {
+			count[r.Status.Label]++
+		}
+	}
+	var out []statusCount
+	for _, label := range []string{statusDownload, statusPlexScan, statusRequested, statusAuto, statusNotAsked, statusNotFound, statusPick} {
+		if n := count[label]; n > 0 {
+			out = append(out, statusCount{Label: label, N: n, Warn: label == statusNotFound || label == statusPick})
+		}
+	}
+	return out
+}

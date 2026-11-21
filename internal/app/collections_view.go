@@ -78,6 +78,8 @@ type collectionView struct {
 	SyncIntervals         []intervalOption
 	Created               bool
 	StatusLine            string
+	StatusCounts          []statusCount // rows by download status, for the Downloads tab
+	SyncFailed            bool          // the last playlist sync failed or waits for approval
 	StatusWarn            bool
 	Arr                   []arrView
 	NoDownload            bool // this collection opted out of automatic downloads
@@ -87,8 +89,10 @@ type collectionView struct {
 	Removed               int
 }
 
-// Tabs: Order, and Advanced. The older tab names still resolve (to Advanced) so old links work.
-var collectionTabs = map[string]bool{"order": true, "advanced": true, "source": true, "publishing": true, "history": true, "settings": true}
+// Tabs: Order, Collection (details and where it comes from), Target (the Plex playlist),
+// Downloads and History. Older tab names still resolve so old links keep working.
+var collectionTabs = map[string]bool{"order": true, "collection": true, "target": true, "downloads": true, "history": true}
+var legacyTabs = map[string]string{"advanced": "collection", "source": "collection", "settings": "collection", "publishing": "target"}
 
 func intervals(current int, manual bool) []intervalOption {
 	list := []intervalOption{{15, "15 minutes"}, {30, "30 minutes"}, {60, "1 hour"}, {360, "6 hours"}, {720, "12 hours"}, {1440, "1 day"}, {10080, "1 week"}}
@@ -158,11 +162,11 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	if p.List, err = a.collectionList(ctx, r, o, values, c.ID); err != nil {
 		return p, err
 	}
+	if to, ok := legacyTabs[tab]; ok {
+		tab = to
+	}
 	if !collectionTabs[tab] {
 		tab = "order"
-	}
-	if tab != "order" {
-		tab = "advanced"
 	}
 	v := &collectionView{Tab: tab, Adding: r.URL.Query().Get("add") == "1", Created: r.URL.Query().Get("created") == "1"}
 	p.Detail = v
@@ -268,7 +272,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			before, _ := portable.Decode(sub.LastValid)
 			after, _ := portable.Decode(sub.Pending)
 			sv.Changes = portable.Diff(before, after)
-			if tab == "advanced" {
+			if tab == "collection" {
 				v.Changes = portable.DiffDetail(before, after)
 				for _, change := range v.Changes {
 					switch change.Kind {
@@ -290,8 +294,12 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		v.SourceIntervals = intervals(sub.IntervalMinutes, false)
 	}
 	v.StatusLine, v.StatusWarn = statusLine(v, len(c.Entries))
+	v.StatusCounts = statusCounts(v.Rows)
+	for _, d := range v.Destinations {
+		v.SyncFailed = v.SyncFailed || d.HasLatest && (d.Latest.State == "failed" || d.Latest.State == "pending")
+	}
 	switch tab {
-	case "advanced":
+	case "target", "history":
 		runs, err := a.store.SyncRuns(ctx, c.ID)
 		if err != nil {
 			return p, err
@@ -303,11 +311,13 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 		for _, run := range runs {
 			v.Runs = append(v.Runs, syncRunView{SyncRun: run, Destination: names[run.DestinationID]})
 		}
-		jobs, err := a.store.CollectionJobs(ctx, c.ID)
-		if err != nil {
-			return p, err
+		if tab == "history" {
+			jobs, err := a.store.CollectionJobs(ctx, c.ID)
+			if err != nil {
+				return p, err
+			}
+			v.History = historyRows(jobs, time.Now())
 		}
-		v.History = historyRows(jobs, time.Now())
 	}
 	return p, nil
 }

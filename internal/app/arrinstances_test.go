@@ -110,7 +110,7 @@ func TestOnlyChosenInstancesDownloadAndDefaultsApplyToNewCollections(t *testing.
 		t.Fatal("a ticked instance did not request")
 	}
 	// The collection page lists both instances with the chosen ones ticked.
-	body := request(h, "GET", "/collections/"+collection+"?tab=advanced", nil, session, csrf).Body.String()
+	body := request(h, "GET", "/collections/"+collection+"?tab=downloads", nil, session, csrf).Body.String()
 	if !strings.Contains(body, `name="instance" value="`+byName["Radarr B"].ID+`" checked`) || !strings.Contains(body, "Download from") {
 		t.Fatal("instance checkboxes missing")
 	}

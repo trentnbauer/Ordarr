@@ -92,23 +92,60 @@ func TestStatusLine(t *testing.T) {
 	}
 }
 
-// The merged Advanced tab renders, and the old tab names still resolve to it.
-func TestAdvancedTabRendersAndOldTabsRedirectThere(t *testing.T) {
+// Each collection tab shows its own part, and the old tab names still land on the right one.
+func TestCollectionTabsAreSplitLogicallyAndOldLinksResolve(t *testing.T) {
 	a, h := fixture(t)
 	session, csrf := setup(t, h)
 	id, err := a.store.ImportCollection(context.Background(), store.Collection{Title: "T", Entries: []store.Entry{{ID: "a", Kind: "movie", Title: "M", Provider: "tmdb", ExternalID: "1"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tab := range []string{"advanced", "source", "publishing", "history", "settings"} {
+	get := func(tab string) string {
+		t.Helper()
 		w := request(h, "GET", "/collections/"+id+"?tab="+tab, nil, session, csrf)
-		body := w.Body.String()
-		if w.Code != 200 || !strings.Contains(body, "Recent activity") || !strings.Contains(body, "Delete this collection") || !strings.Contains(body, "Connect Sonarr or Radarr") {
+		if w.Code != 200 {
 			t.Fatalf("tab %s: %d", tab, w.Code)
+		}
+		return w.Body.String()
+	}
+	for _, c := range []struct {
+		tab   string
+		has   []string
+		hasnt []string
+	}{
+		{"collection", []string{"Where it comes from", "Delete this collection", "Duplicate as an editable copy"}, []string{"Recent activity", "What's happening", "Not published yet"}},
+		{"target", []string{"Not published yet"}, []string{"Delete this collection", "Recent activity", "What's happening"}},
+		{"downloads", []string{"What's happening", "Connect Sonarr or Radarr"}, []string{"Delete this collection", "Recent activity", "Not published yet"}},
+		{"history", []string{"Recent activity"}, []string{"Delete this collection", "What's happening", "Not published yet"}},
+	} {
+		body := get(c.tab)
+		for _, want := range c.has {
+			if !strings.Contains(body, want) {
+				t.Errorf("tab %s is missing %q", c.tab, want)
+			}
+		}
+		for _, no := range c.hasnt {
+			if strings.Contains(body, no) {
+				t.Errorf("tab %s should not show %q", c.tab, no)
+			}
+		}
+		if !strings.Contains(body, `?tab=`+c.tab+`" aria-current="page"`) {
+			t.Errorf("tab %s is not marked current", c.tab)
+		}
+	}
+	// Old names: source, settings and advanced are the Collection tab; publishing is Target.
+	for old, want := range map[string]string{"source": "Where it comes from", "settings": "Where it comes from", "advanced": "Where it comes from", "publishing": "Not published yet"} {
+		if !strings.Contains(get(old), want) {
+			t.Errorf("old tab %q no longer lands on the right page", old)
 		}
 	}
 	body := request(h, "GET", "/collections/"+id, nil, session, csrf).Body.String()
-	if !strings.Contains(body, `id="collection-status"`) || strings.Contains(body, `class="stats top"`) || strings.Contains(body, ">Missing<") {
-		t.Fatal("header still has stat tiles or a Missing tab")
+	if !strings.Contains(body, `id="collection-status"`) || strings.Contains(body, `class="stats top"`) || strings.Contains(body, ">Advanced<") || strings.Contains(body, ">Missing<") {
+		t.Fatal("header still has stat tiles, an Advanced tab or a Missing tab")
+	}
+	for _, name := range []string{">Order<", ">Collection<", ">Target<", ">Downloads<", ">History<"} {
+		if !strings.Contains(body, name) {
+			t.Errorf("tab %s missing", name)
+		}
 	}
 }
