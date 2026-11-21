@@ -62,7 +62,10 @@ func span(oldest, newest int64, now time.Time) string {
 }
 
 // arrLabel names a Sonarr/Radarr instance for display.
-type arrLabel struct{ Name, Kind string }
+type arrLabel struct {
+	Name, Kind   string
+	BlockedUntil int64 // when the instance's request limit frees up, while it is full
+}
 
 // requestRow words one download request for the History tab: what was asked for, which instance
 // it went to, who asked, and how it went.
@@ -83,7 +86,13 @@ func requestRow(r store.AcquisitionRequest, instance arrLabel) jobRow {
 	switch r.State {
 	case "completed":
 		row.Result = "Requested from " + name + " (" + instance.Kind + ") · " + who
-	case "approved", "running":
+	case "approved":
+		if instance.BlockedUntil > 0 {
+			row.Result, row.Class = "Waiting for "+name+"'s request limit; goes out "+clock(instance.BlockedUntil)+" · "+who, "muted"
+		} else {
+			row.Result, row.Class = "Being sent to "+name+" · "+who, "muted"
+		}
+	case "running":
 		row.Result, row.Class = "Being sent to "+name+" · "+who, "muted"
 	case "pending":
 		row.Result, row.Class = "Waiting for your approval to send to "+name+" · "+who, "warn"

@@ -99,7 +99,7 @@ func TestMoviesListedByIMDbIDAreIdentifiedAndRequested(t *testing.T) {
 		al, _, _ := a.aliases(ctx)
 		for _, e := range collection.Entries {
 			if e.ExternalID == imdb {
-				return missingStatus([]store.ArrConnection{c}, nil, e, true, false, map[string]bool{c.ID: true}, al)
+				return missingStatus([]store.ArrConnection{c}, nil, e, true, false, map[string]bool{c.ID: true}, al, nil)
 			}
 		}
 		t.Fatal("no entry", imdb)

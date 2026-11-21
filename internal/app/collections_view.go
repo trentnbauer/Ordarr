@@ -239,6 +239,10 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 	if err != nil {
 		return p, err
 	}
+	limits, err := a.requestLimits(ctx, o.Arr)
+	if err != nil {
+		return p, err
+	}
 	requests, err := a.store.AcquisitionIndex(ctx)
 	if err != nil {
 		return p, err
@@ -255,7 +259,7 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			row.Status = rowStatus{Label: statusPick, Detail: "More than one item on " + v.Server.Name + " could be this one.", Warn: true}
 			row.Picks = picks.Candidates[row.Entry.ID]
 		case "missing":
-			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen, al)
+			row.Status = missingStatus(o.Arr, requests, row.Entry, o.Defaults.AutoDownload, v.NoDownload, chosen, al, limits)
 		}
 	}
 	interval := o.Defaults.SyncInterval
@@ -323,9 +327,15 @@ func (a *App) collectionPage(ctx context.Context, r *http.Request, c store.Colle
 			if err != nil {
 				return p, err
 			}
+			blockedUntil := map[string]int64{}
+			for id, l := range limits {
+				if l.Blocked {
+					blockedUntil[id] = l.Opens
+				}
+			}
 			instances := map[string]arrLabel{}
 			for _, conn := range o.Arr {
-				instances[conn.ID] = arrLabel{Name: conn.Name, Kind: map[string]string{"radarr": "Radarr", "sonarr": "Sonarr"}[conn.Kind]}
+				instances[conn.ID] = arrLabel{Name: conn.Name, Kind: map[string]string{"radarr": "Radarr", "sonarr": "Sonarr"}[conn.Kind], BlockedUntil: blockedUntil[conn.ID]}
 			}
 			v.History = historyRows(jobs, requests, instances, time.Now())
 		}

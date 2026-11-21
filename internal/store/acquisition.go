@@ -17,6 +17,7 @@ type ArrConnection struct {
 	CheckedAt                   int64
 	RequireApproval             bool // legacy "ask me first"; new connections send immediately
 	DailyLimit                  int
+	LimitOff                    bool // no cap on requests per 24 hours
 	Exclusions                  string
 	NextRun                     int64
 }
@@ -25,7 +26,7 @@ func scanArr(row interface{ Scan(...any) error }) (ArrConnection, error) {
 	var c ArrConnection
 	var data []byte
 	var legacyAutomatic bool // superseded by Defaults.AutoDownload and the per-collection opt-out
-	err := row.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.KeyCipher, &c.ProfileID, &c.RootID, &c.Revision, &data, &c.CheckedAt, &legacyAutomatic, &c.RequireApproval, &c.DailyLimit, &c.Exclusions, &c.NextRun)
+	err := row.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.KeyCipher, &c.ProfileID, &c.RootID, &c.Revision, &data, &c.CheckedAt, &legacyAutomatic, &c.RequireApproval, &c.DailyLimit, &c.Exclusions, &c.NextRun, &c.LimitOff)
 	if err == nil {
 		err = json.Unmarshal(data, &c.Snapshot)
 	}
@@ -100,8 +101,9 @@ func Excluded(c ArrConnection, id int) bool {
 	}
 	return false
 }
-func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, limit int, exclude string) error {
-	if limit < 1 || limit > 100 || len(exclude) > 4000 {
+func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, limit int, limitOff bool, exclude string) error {
+	// With the limit switched off the number is not used, so it is not validated either.
+	if !limitOff && (limit < 1 || limit > 100) || len(exclude) > 4000 {
 		return ErrInvalid
 	}
 	for _, part := range strings.FieldsFunc(exclude, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\r' }) {
@@ -109,11 +111,18 @@ func (s *Store) ArrPolicy(ctx context.Context, id string, revision int, limit in
 			return ErrInvalid
 		}
 	}
-	res, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET daily_limit=?,exclusions=?,revision=revision+1,next_run=0 WHERE id=? AND revision=?", limit, exclude, id, revision)
+	res, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET daily_limit=CASE WHEN ? THEN daily_limit ELSE ? END,limit_off=?,exclusions=?,revision=revision+1,next_run=0 WHERE id=? AND revision=?", limitOff, limit, limitOff, exclude, id, revision)
 	if err != nil {
 		return err
 	}
-	return plexChanged(res)
+	if err = plexChanged(res); err != nil {
+		return err
+	}
+	// The limit and the exclusions are checked live when a request is sent, so changing them must not
+	// strand requests that were approved under the previous revision (switching the limit off is how
+	// you release the ones waiting on it). A changed profile or folder is different: see ConfigureArrChoices.
+	_, err = s.DB.ExecContext(ctx, "UPDATE acquisition_requests SET connection_revision=? WHERE connection_id=? AND state='approved' AND connection_revision=?", revision+1, id, revision)
+	return err
 }
 
 type AcquisitionRequest struct {
@@ -238,9 +247,10 @@ func (s *Store) BeginAcquisition(ctx context.Context, r AcquisitionRequest, c Ar
 		return err
 	}
 	defer tx.Rollback()
-	var count, revision int
+	var count, revision, dailyLimit int
 	var exclusions string
-	if err = tx.QueryRowContext(ctx, "SELECT revision,exclusions FROM arr_connections WHERE id=?", c.ID).Scan(&revision, &exclusions); err != nil {
+	var limitOff bool
+	if err = tx.QueryRowContext(ctx, "SELECT revision,exclusions,daily_limit,limit_off FROM arr_connections WHERE id=?", c.ID).Scan(&revision, &exclusions, &dailyLimit, &limitOff); err != nil {
 		return err
 	}
 	c.Exclusions = exclusions
@@ -250,7 +260,7 @@ func (s *Store) BeginAcquisition(ctx context.Context, r AcquisitionRequest, c Ar
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM acquisition_attempts WHERE connection_id=? AND created_at>=?", c.ID, time.Now().Add(-24*time.Hour).Unix()).Scan(&count); err != nil {
 		return err
 	}
-	if count >= c.DailyLimit {
+	if !limitOff && count >= dailyLimit {
 		return invalid("Rolling 24-hour request limit reached")
 	}
 	res, err := tx.ExecContext(ctx, "UPDATE acquisition_requests SET state='running',attempted_at=?,message='Attempt reserved; uncertain writes require reconciliation.' WHERE id=? AND state='approved'", time.Now().Unix(), r.ID)
@@ -301,7 +311,17 @@ func (s *Store) ConfigureArrChoices(ctx context.Context, id string, profile, roo
 	if profile < 1 || root < 1 {
 		return ErrInvalid
 	}
-	_, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET profile_id=?,root_id=?,revision=revision+1 WHERE id=?", profile, root, id)
+	var oldProfile, oldRoot, revision int
+	if err := s.DB.QueryRowContext(ctx, "SELECT profile_id,root_id,revision FROM arr_connections WHERE id=?", id).Scan(&oldProfile, &oldRoot, &revision); err != nil {
+		return err
+	}
+	if _, err := s.DB.ExecContext(ctx, "UPDATE arr_connections SET profile_id=?,root_id=?,revision=revision+1 WHERE id=?", profile, root, id); err != nil {
+		return err
+	}
+	if profile != oldProfile || root != oldRoot {
+		return nil // where requests go changed: what was approved before must be approved again
+	}
+	_, err := s.DB.ExecContext(ctx, "UPDATE acquisition_requests SET connection_revision=? WHERE connection_id=? AND state='approved' AND connection_revision=?", revision+1, id, revision)
 	return err
 }
 func (s *Store) RetryAcquisition(ctx context.Context, id string, revision int) error {
