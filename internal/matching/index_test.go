@@ -28,9 +28,10 @@ func TestIndexAgreesWithResolve(t *testing.T) {
 		n := r.Intn(3)
 		return &n
 	}
+	titles := []string{"Alpha", "Beta", "Gamma", "Delta", ""}
 	var items []plex.IdentifiedMedia
 	for i := 0; i < 400; i++ {
-		item := plex.IdentifiedMedia{MediaItem: plex.MediaItem{RatingKey: strconv.Itoa(i % 350), Kind: []string{"movie", "episode"}[r.Intn(2)]}, Playable: r.Intn(4) > 0}
+		item := plex.IdentifiedMedia{MediaItem: plex.MediaItem{RatingKey: strconv.Itoa(i % 350), Kind: []string{"movie", "episode"}[r.Intn(2)], Title: titles[r.Intn(5)], SeriesTitle: titles[r.Intn(5)]}, Playable: r.Intn(4) > 0}
 		if item.Kind == "episode" {
 			item.SeriesIDs = pick()
 			item.Season, item.Episode = num(), num()
@@ -41,7 +42,7 @@ func TestIndexAgreesWithResolve(t *testing.T) {
 	}
 	x := NewIndex(items)
 	for i := 0; i < 3000; i++ {
-		e := Identity{Kind: []string{"movie", "episode"}[r.Intn(2)], Provider: providers[r.Intn(3)], ExternalID: strconv.Itoa(r.Intn(7)), Season: r.Intn(3), Episode: r.Intn(3)}
+		e := Identity{Kind: []string{"movie", "episode"}[r.Intn(2)], Provider: providers[r.Intn(3)], ExternalID: strconv.Itoa(r.Intn(7)), Season: r.Intn(3), Episode: r.Intn(3), Aliases: pick(), Titles: []string{titles[r.Intn(5)]}}
 		manual := ""
 		if r.Intn(5) == 0 {
 			manual = strconv.Itoa(r.Intn(400))

@@ -87,9 +87,13 @@ func (a *App) syncDestination(ctx context.Context, j store.Job) (ret error) {
 	if err != nil {
 		return err
 	}
+	al, _, err := a.aliases(ctx)
+	if err != nil {
+		return err
+	}
 	verified := map[string]plex.IdentifiedMedia{}
 	for _, entry := range collection.Entries {
-		identity := matching.Identity{Kind: entry.Kind, Provider: entry.Provider, ExternalID: entry.ExternalID, Season: entry.Season, Episode: entry.Episode}
+		identity := identityFor(entry, al)
 		match := matching.Resolve(identity, items, overrides[entry.ID])
 		if match.State != "available" {
 			continue
