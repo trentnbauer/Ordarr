@@ -147,46 +147,33 @@ func (a *App) scanCatalogue(ctx context.Context, j store.Job) error {
 		if !lib.Browsable() {
 			continue
 		}
-		offset, total := 0, -1
-		for {
-			page, err := a.plex.FetchMediaPage(ctx, c.BaseURL, token, c.ClientID, c.AllowHTTP, lib, offset)
+		items, err := a.listLibrary(ctx, c, token, lib)
+		if err != nil {
+			return err
+		}
+		if len(seen)+len(items) > 50000 {
+			return store.ErrInvalid
+		}
+		// The slow part: details for each item of a library list that was consistent when taken.
+		for _, item := range items {
+			if seen[item.RatingKey] {
+				return plex.ErrMediaChanged
+			}
+			seen[item.RatingKey] = true
+			detail, err := a.plex.DetailsCached(ctx, c.BaseURL, token, c.ClientID, c.AllowHTTP, item.RatingKey, series)
 			if err != nil {
 				return err
 			}
-			if total >= 0 && total != page.Total {
+			if detail.Kind != item.Kind {
 				return plex.ErrMediaChanged
 			}
-			total = page.Total
-			if total > 50000 {
-				return store.ErrInvalid
+			if err = a.store.StageMedia(ctx, c.ID, generation, detail); err != nil {
+				return err
 			}
-			for _, item := range page.Items {
-				if seen[item.RatingKey] {
-					return plex.ErrMediaChanged
-				}
-				seen[item.RatingKey] = true
-				detail, err := a.plex.DetailsCached(ctx, c.BaseURL, token, c.ClientID, c.AllowHTTP, item.RatingKey, series)
-				if err != nil {
-					return err
-				}
-				if detail.Kind != item.Kind {
-					return plex.ErrMediaChanged
-				}
-				if err = a.store.StageMedia(ctx, c.ID, generation, detail); err != nil {
-					return err
-				}
-				n++
-				if n > 50000 {
-					return store.ErrInvalid
-				}
-				if err = a.store.JobProgress(ctx, j.ID, n); err != nil {
-					return err
-				}
+			n++
+			if err = a.store.JobProgress(ctx, j.ID, n); err != nil {
+				return err
 			}
-			if !page.HasNext() {
-				break
-			}
-			offset += len(page.Items)
 		}
 	}
 	// Revalidate topology and identity before making a complete generation visible.
@@ -202,6 +189,66 @@ func (a *App) scanCatalogue(ctx context.Context, j store.Job) error {
 	}
 	complete = true
 	return nil
+}
+
+// listLibrary lists a library's items page by page and insists the listing is consistent (the
+// total never changes and no item repeats). When Plex changes mid-listing, which happens whenever
+// downloads are being imported, it starts that library's listing again after a short pause. The
+// listing takes seconds, so a quiet moment is easy to find; the slow per-item details are fetched
+// afterwards from the finished list. A listing that never settles still fails the scan, so a
+// half-consistent catalogue is never accepted.
+func (a *App) listLibrary(ctx context.Context, c store.PlexConnection, token string, lib plex.Library) ([]plex.MediaItem, error) {
+	var last error
+	for attempt := 0; attempt < libraryListAttempts; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(attempt) * libraryListPause):
+			}
+		}
+		items, err := a.pageLibrary(ctx, c, token, lib)
+		if !errors.Is(err, plex.ErrMediaChanged) {
+			return items, err
+		}
+		last = err
+	}
+	return nil, last
+}
+
+var (
+	libraryListAttempts = 6
+	libraryListPause    = 4 * time.Second
+)
+
+func (a *App) pageLibrary(ctx context.Context, c store.PlexConnection, token string, lib plex.Library) ([]plex.MediaItem, error) {
+	var items []plex.MediaItem
+	local := map[string]bool{}
+	offset, total := 0, -1
+	for {
+		page, err := a.plex.FetchMediaPage(ctx, c.BaseURL, token, c.ClientID, c.AllowHTTP, lib, offset)
+		if err != nil {
+			return nil, err
+		}
+		if total >= 0 && total != page.Total {
+			return nil, plex.ErrMediaChanged
+		}
+		total = page.Total
+		if total > 50000 {
+			return nil, store.ErrInvalid
+		}
+		for _, item := range page.Items {
+			if local[item.RatingKey] {
+				return nil, plex.ErrMediaChanged
+			}
+			local[item.RatingKey] = true
+			items = append(items, item)
+		}
+		if !page.HasNext() {
+			return items, nil
+		}
+		offset += len(page.Items)
+	}
 }
 func sameLibraries(a, b []plex.Library) bool {
 	if len(a) != len(b) {
