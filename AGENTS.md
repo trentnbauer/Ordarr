@@ -37,3 +37,9 @@ The MVP is complete only when its features work together end-to-end, automated t
 - Keep automatic Sonarr/Radarr acquisition disabled by default. When implementing it post-MVP, add configurable limits, deduplication, exclusions and audit logging.
 - Successful compilation or mocked tests are not proof of live service compatibility. Use real production API adapters, validate against documented APIs, and clearly distinguish mocked test results from live-server verification.
 - Prioritise data integrity, low idle CPU/RAM usage and reliable synchronisation over visual polish or additional features. Never mark simulated, incomplete or untested behaviour complete.
+
+## Pull requests
+- Base every PR on `main`; do not stack PRs on each other.
+- Every PR needs exactly one release label, or the `Release label` check fails: `release: fix` (bug fix), `release: minor` (new feature), `release: major` (breaking change) or `release: none` (docs, CI, no new version). Add other relevant labels too (`bug`, `enhancement`, `documentation`, `dependencies`, `go`, `accessibility`).
+- Get every check green (build, tests, `Release label`, CodeQL) before considering a PR done; fix failures rather than ignoring them.
+- Turn on auto-merge for the PR (`gh pr merge --auto --squash`) once it is ready for review (not a draft), so it merges when checks pass. Never push to `main` or force-push.
